@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """
-模型转换脚本：将 PC 端的 .pth 权重转换为 Android 可用的 TorchScript (.pt) 格式
+模型转换脚本：将 PC 端的 .pth 权重转换为 Android PyTorch Lite 可用的 .pt 格式
+
+关键：必须使用 traced._save_for_lite_interpreter() 而不是 traced.save()，
+否则 Android 端 LiteModuleLoader 会因缺少 bytecode.pkl 而崩溃。
 
 运行方式：
     cd webapp
@@ -71,7 +74,7 @@ example_input = torch.randn(1, 1, 64, 94)
 try:
     traced = torch.jit.trace(model1, example_input)
     out_path = OUTPUT_DIR / "efficientat_lite.pt"
-    traced.save(str(out_path))
+    traced._save_for_lite_interpreter(str(out_path))
     print(f"      ✅ 已保存: {out_path}")
     print(f"      验证输出: {traced(example_input).shape}")
 except Exception as e:
@@ -95,7 +98,7 @@ example_input2 = torch.randn(1, 1, 64, 94)
 try:
     traced2 = torch.jit.trace(model2, example_input2)
     out_path2 = OUTPUT_DIR / "panns_cnn6.pt"
-    traced2.save(str(out_path2))
+    traced2._save_for_lite_interpreter(str(out_path2))
     print(f"      ✅ 已保存: {out_path2}")
     print(f"      验证输出: {traced2(example_input2).shape}")
 except Exception as e:
@@ -124,7 +127,7 @@ example_input3 = torch.randn(1, 1, 128, 256)
 try:
     traced3 = torch.jit.trace(model3, example_input3)
     out_path3 = OUTPUT_DIR / "mobilenetv1.pt"
-    traced3.save(str(out_path3))
+    traced3._save_for_lite_interpreter(str(out_path3))
     print(f"      ✅ 已保存: {out_path3}")
     print(f"      验证输出: {traced3(example_input3).shape}")
 except Exception as e:
