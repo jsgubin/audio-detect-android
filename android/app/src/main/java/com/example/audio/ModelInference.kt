@@ -65,7 +65,7 @@ class ModelInference(private val context: Context) {
         return when (currentModel) {
             "mobilenet" -> {
                 // Softmax 单标签
-                val expScores = scores.map { kotlin.math.exp(it.toDouble()) }
+                val expScores = scores.map { Math.exp(it.toDouble()) }
                 val sumExp = expScores.sum()
                 val probs = expScores.map { (it / sumExp).toFloat() }
                 val maxIdx = probs.indices.maxByOrNull { probs[it] } ?: -1
@@ -77,7 +77,7 @@ class ModelInference(private val context: Context) {
                 // Sigmoid 多标签
                 val results = mutableListOf<Map<String, Any>>()
                 for (i in scores.indices) {
-                    val prob = (1.0 / (1.0 + kotlin.math.exp(-scores[i].toDouble()))).toFloat() // sigmoid
+                    val prob = (1.0 / (1.0 + Math.exp(-scores[i].toDouble()))).toFloat() // sigmoid
                     if (prob > confThreshold) {
                         results.add(mapOf("class" to classes[i], "prob" to prob))
                     }
