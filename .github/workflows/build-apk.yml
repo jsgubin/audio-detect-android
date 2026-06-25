@@ -35,12 +35,6 @@ jobs:
         ls -la gradlew
         chmod +x gradlew
 
-    - name: Compile Kotlin (debug info)
-      run: |
-        cd android
-        ./gradlew compileDebugKotlin --no-daemon --info --rerun-tasks 2>&1
-      continue-on-error: true
-
     - name: Build APK
       run: |
         cd android

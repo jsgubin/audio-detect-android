@@ -100,7 +100,7 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 // VAD 检测（简单峰值检测）
-                val maxAmp = audioBuffer.maxOf { kotlin.math.abs(it) }
+                val maxAmp = audioBuffer.maxOf { kotlin.math.abs(it.toInt()) }
                 if (maxAmp < vadThreshold * 32768) {
                     // 静音，跳过
                     continue
