@@ -77,7 +77,7 @@ class ModelInference(private val context: Context) {
                 // Sigmoid 多标签
                 val results = mutableListOf<Map<String, Any>>()
                 for (i in scores.indices) {
-                    val prob = 1.0f / (1.0f + kotlin.math.exp(-scores[i])) // sigmoid
+                    val prob = (1.0 / (1.0 + kotlin.math.exp(-scores[i].toDouble()))).toFloat() // sigmoid
                     if (prob > confThreshold) {
                         results.add(mapOf("class" to classes[i], "prob" to prob))
                     }
