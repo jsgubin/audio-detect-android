@@ -28,8 +28,7 @@ class ModelInference(private val context: Context) {
     fun loadModel(modelName: String) {
         if (modelName == currentModel && module != null) return
 
-        // 释放旧模型
-        module?.close()
+        // 释放旧模型（PyTorch Lite 的 Module 没有 close/destroy 方法，直接设为 null 让 GC 回收）
         module = null
 
         val assetName = when (modelName) {
@@ -90,7 +89,7 @@ class ModelInference(private val context: Context) {
     }
 
     fun release() {
-        module?.close()
+        // PyTorch Lite 的 Module 没有 close/destroy 方法
         module = null
         currentModel = ""
     }
