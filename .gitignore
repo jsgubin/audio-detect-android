@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+venv/
+.venv/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Logs
+*.log
+
+# Android
+android/app/build/
+android/.gradle/
+android/local.properties
+
+# Models (keep .pt for Android, ignore large .pth backups)
+*.pth
+
+# OS
+.DS_Store
+Thumbs.db

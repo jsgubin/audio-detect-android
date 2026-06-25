@@ -1,0 +1,18 @@
+# 运行 webapp/app_zyx.py 所需依赖
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9          # FastAPI 文件上传需要
+
+torch>=2.0.0
+torchvision>=0.15.0
+numpy>=1.23.0
+librosa>=0.10.0
+
+# 注意：
+# 1. 浏览器录制的 webm 格式需要系统安装 ffmpeg（librosa 解码依赖）
+#    Ubuntu/Debian: sudo apt install ffmpeg
+#    macOS:         brew install ffmpeg
+#    Windows:       下载 https://ffmpeg.org 下载并加入 PATH
+#
+# 2. 如果你在 CPU 上运行，torch 会自动使用 CPU 版本。
+# 3. 建议 Python 3.9 ~ 3.11
