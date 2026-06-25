@@ -29,7 +29,7 @@ class ModelInference(private val context: Context) {
         if (modelName == currentModel && module != null) return
 
         // 释放旧模型
-        module?.destroy()
+        module?.close()
         module = null
 
         val assetName = when (modelName) {
@@ -90,7 +90,7 @@ class ModelInference(private val context: Context) {
     }
 
     fun release() {
-        module?.destroy()
+        module?.close()
         module = null
         currentModel = ""
     }
