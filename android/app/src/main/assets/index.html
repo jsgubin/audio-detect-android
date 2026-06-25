@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>实时环境音识别 - Android</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 16px;
+        }
+        h1 {
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-align: center;
+            margin-bottom: 4px;
+        }
+        .subtitle { color: #64748b; font-size: 0.8rem; text-align: center; margin-bottom: 16px; }
+
+        .main-panel {
+            background: #1e293b;
+            border-radius: 12px;
+            border: 1px solid #334155;
+            overflow: hidden;
+        }
+
+        .viz-area {
+            position: relative;
+            height: 120px;
+            background: #0f172a;
+            border-bottom: 1px solid #334155;
+        }
+        #waveCanvas { width: 100%; height: 100%; display: block; }
+        .status-badge {
+            position: absolute; top: 8px; left: 12px;
+            display: flex; align-items: center; gap: 6px;
+            padding: 3px 10px; border-radius: 16px;
+            font-size: 0.7rem; font-weight: 600;
+            background: #334155; color: #94a3b8;
+        }
+        .status-badge.active { background: #064e3b; color: #34d399; }
+        .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #94a3b8; }
+        .status-badge.active .status-dot { background: #34d399; box-shadow: 0 0 6px #34d399; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+        .vol-bar { position: absolute; bottom: 8px; right: 12px; width: 80px; height: 4px; background: #334155; border-radius: 2px; }
+        .vol-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #22c55e, #eab308, #ef4444); border-radius: 2px; transition: width 0.1s; }
+
+        .controls {
+            display: flex; flex-wrap: wrap; gap: 10px; padding: 12px; border-bottom: 1px solid #334155; align-items: flex-end;
+        }
+        .control-group { display: flex; flex-direction: column; gap: 2px; }
+        .control-group label { font-size: 0.65rem; color: #94a3b8; text-transform: uppercase; font-weight: 600; }
+        select, input[type="number"] { background: #0f172a; border: 1px solid #475569; color: #e2e8f0; padding: 6px 8px; border-radius: 6px; font-size: 0.85rem; outline: none; }
+        select { min-width: 130px; }
+        input[type="number"] { width: 65px; }
+        .btn { padding: 8px 18px; border: none; border-radius: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { background: linear-gradient(135deg, #059669, #10b981); color: white; }
+        .btn-danger { background: linear-gradient(135deg, #dc2626, #ef4444); color: white; }
+        .spacer { flex: 1; }
+
+        .content { display: grid; grid-template-columns: 1fr 220px; }
+        @media (max-width: 600px) { .content { grid-template-columns: 1fr; } }
+
+        .log-section { padding: 12px; border-right: 1px solid #334155; }
+        @media (max-width: 600px) { .log-section { border-right: none; border-bottom: 1px solid #334155; } }
+        .section-header { display: flex; justify-content: space-between; margin-bottom: 10px; }
+        .section-title { font-size: 0.75rem; color: #94a3b8; font-weight: 700; }
+        .clear-btn { font-size: 0.7rem; color: #64748b; background: none; border: none; cursor: pointer; padding: 3px 6px; border-radius: 3px; }
+        .log-container { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; }
+        .empty-state { text-align: center; padding: 40px 16px; color: #475569; }
+        .empty-icon { font-size: 2rem; opacity: 0.3; margin-bottom: 8px; }
+        .log-entry { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #0f172a; border: 1px solid #1e293b; border-radius: 8px; animation: slideIn 0.4s ease-out; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-15px); } to { opacity: 1; transform: translateX(0); } }
+        .log-time { font-size: 0.7rem; color: #64748b; font-family: monospace; }
+        .log-icon { font-size: 1.2rem; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; background: #1e293b; border-radius: 6px; }
+        .log-name { font-weight: 600; font-size: 0.85rem; }
+        .log-prob { padding: 1px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 700; font-family: monospace; }
+        .prob-high { background: #064e3b; color: #34d399; }
+        .prob-mid { background: #713f12; color: #fbbf24; }
+        .prob-low { background: #7f1d1d; color: #f87171; }
+
+        .stats-panel { padding: 12px; background: #0f172a; }
+        .stat-card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 10px; margin-bottom: 8px; }
+        .stat-label { font-size: 0.65rem; color: #64748b; font-weight: 600; margin-bottom: 4px; }
+        .stat-value { font-size: 1.2rem; font-weight: 700; }
+        .stat-value.accent { color: #38bdf8; }
+        .class-item { display: flex; justify-content: space-between; padding: 6px 8px; border-radius: 5px; font-size: 0.8rem; margin-bottom: 4px; }
+        .class-item:nth-child(1) { background: rgba(239,68,68,0.1); color: #f87171; }
+        .class-item:nth-child(2) { background: rgba(249,115,22,0.1); color: #fb923c; }
+        .class-item:nth-child(3) { background: rgba(234,179,8,0.1); color: #facc15; }
+        .class-item:nth-child(4) { background: rgba(34,197,94,0.1); color: #4ade80; }
+        .class-item:nth-child(5) { background: rgba(59,130,246,0.1); color: #60a5fa; }
+        .class-item:nth-child(6) { background: rgba(168,85,247,0.1); color: #c084fc; }
+        .class-count { font-weight: 700; font-family: monospace; }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 2px; }
+    </style>
+</head>
+<body>
+    <h1>🎤 实时环境音识别</h1>
+    <div class="subtitle">Android 离线版 · PyTorch Mobile</div>
+
+    <div class="main-panel">
+        <div class="viz-area">
+            <canvas id="waveCanvas"></canvas>
+            <div class="status-badge" id="statusBadge">
+                <div class="status-dot"></div>
+                <span id="statusText">就绪</span>
+            </div>
+            <div class="vol-bar"><div class="vol-fill" id="volFill"></div></div>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>引擎</label>
+                <select id="modelSelect">
+                    <option value="efficientat">EfficientAT V3</option>
+                    <option value="panns">PANNs Cnn6</option>
+                    <option value="mobilenet">MobileNetV1</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>静音阈值</label>
+                <input type="number" id="vadThreshold" value="0.03" step="0.01" min="0" max="0.20">
+            </div>
+            <div class="control-group">
+                <label>置信度</label>
+                <input type="number" id="confThreshold" value="0.60" step="0.05" min="0.30" max="0.95">
+            </div>
+            <div class="spacer"></div>
+            <button class="btn btn-primary" id="startBtn">▶ 开始</button>
+            <button class="btn btn-danger" id="stopBtn" disabled>⏹ 停止</button>
+        </div>
+
+        <div class="content">
+            <div class="log-section">
+                <div class="section-header">
+                    <div class="section-title">📋 检测记录</div>
+                    <button class="clear-btn" id="clearBtn">清空</button>
+                </div>
+                <div class="log-container" id="logContainer">
+                    <div class="empty-state">
+                        <div class="empty-icon">🔇</div>
+                        <div>等待开始...</div>
+                    </div>
+                </div>
+            </div>
+            <div class="stats-panel">
+                <div class="stat-card">
+                    <div class="stat-label">总检测</div>
+                    <div class="stat-value accent" id="totalCount">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">引擎</div>
+                    <div class="stat-value" id="currentEngine" style="font-size:0.85rem;">-</div>
+                </div>
+                <div>
+                    <div class="stat-label" style="margin-bottom:6px;">类别统计</div>
+                    <div class="class-item">🚨 警报 <span class="class-count" id="cnt-alarm">0</span></div>
+                    <div class="class-item">👶 婴儿啼哭 <span class="class-count" id="cnt-baby_cry">0</span></div>
+                    <div class="class-item">🚗 汽车鸣笛 <span class="class-count" id="cnt-car_horn">0</span></div>
+                    <div class="class-item">🚪 门铃 <span class="class-count" id="cnt-doorbell">0</span></div>
+                    <div class="class-item">💥 玻璃破碎 <span class="class-count" id="cnt-glass_shatter">0</span></div>
+                    <div class="class-item">🔫 枪声 <span class="class-count" id="cnt-gun_shot">0</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== 状态 =====
+        let totalDetections = 0;
+        const classCounts = { alarm:0, baby_cry:0, car_horn:0, doorbell:0, glass_shatter:0, gun_shot:0 };
+        const trans = {
+            alarm: { name:'🚨 警报声', icon:'🚨' },
+            baby_cry: { name:'👶 婴儿啼哭', icon:'👶' },
+            car_horn: { name:'🚗 汽车鸣笛', icon:'🚗' },
+            doorbell: { name:'🚪 门铃声', icon:'🚪' },
+            glass_shatter: { name:'💥 玻璃破碎', icon:'💥' },
+            gun_shot: { name:'🔫 枪声', icon:'🔫' }
+        };
+
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const statusBadge = document.getElementById('statusBadge');
+        const statusText = document.getElementById('statusText');
+        const modelSelect = document.getElementById('modelSelect');
+        const vadInput = document.getElementById('vadThreshold');
+        const confInput = document.getElementById('confThreshold');
+        const logContainer = document.getElementById('logContainer');
+        const clearBtn = document.getElementById('clearBtn');
+        const canvas = document.getElementById('waveCanvas');
+        const ctx = canvas.getContext('2d');
+        const volFill = document.getElementById('volFill');
+
+        let isRecording = false;
+        let mockPhase = 0;
+
+        // 适配 Canvas
+        function resize() {
+            const r = canvas.parentElement.getBoundingClientRect();
+            canvas.width = r.width * 2; canvas.height = r.height * 2;
+            ctx.scale(2, 2);
+        }
+        window.addEventListener('resize', resize); resize();
+
+        // ===== 模拟可视化（因为没有直接麦克风访问，由原生端驱动） =====
+        function drawMockWave() {
+            if (!isRecording) return;
+            const w = canvas.width / 2, h = canvas.height / 2;
+            ctx.clearRect(0, 0, w, h);
+            ctx.fillStyle = '#0f172a'; ctx.fillRect(0, 0, w, h);
+            ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2;
+            ctx.beginPath();
+            const slice = w / 128; let x = 0;
+            for (let i = 0; i < 128; i++) {
+                const v = Math.sin(mockPhase + i * 0.15) * (0.15 + Math.random() * 0.1);
+                const y = h/2 + v * (h/2 - 10);
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                x += slice;
+            }
+            ctx.stroke();
+            mockPhase += 0.12;
+            requestAnimationFrame(drawMockWave);
+        }
+
+        // ===== 原生调用 =====
+        startBtn.addEventListener('click', () => {
+            if (typeof AndroidNative !== 'undefined') {
+                AndroidNative.startListening(
+                    modelSelect.value,
+                    parseFloat(vadInput.value),
+                    parseFloat(confInput.value)
+                );
+            } else {
+                alert('AndroidNative 不可用，请通过 Android App 运行');
+            }
+        });
+
+        stopBtn.addEventListener('click', () => {
+            if (typeof AndroidNative !== 'undefined') {
+                AndroidNative.stopListening();
+            }
+        });
+
+        clearBtn.addEventListener('click', () => {
+            logContainer.innerHTML = '<div class="empty-state"><div class="empty-icon">🔇</div><div>等待开始...</div></div>';
+            totalDetections = 0;
+            for (const k in classCounts) classCounts[k] = 0;
+            updateStats();
+        });
+
+        modelSelect.addEventListener('change', () => {
+            confInput.value = (modelSelect.value === 'mobilenet') ? '0.65' : '0.60';
+        });
+
+        // ===== 接收原生端检测结果 =====
+        window.receiveDetections = function(detections) {
+            if (!detections || detections.length === 0) return;
+            if (logContainer.querySelector('.empty-state')) logContainer.innerHTML = '';
+
+            detections.forEach(det => {
+                const info = trans[det.class] || { name: det.class, icon: '🔊' };
+                const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+                let pc = 'prob-low';
+                if (det.prob >= 0.85) pc = 'prob-high';
+                else if (det.prob >= 0.65) pc = 'prob-mid';
+
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                entry.innerHTML = `
+                    <div class="log-time">${time}</div>
+                    <div class="log-icon">${info.icon}</div>
+                    <div style="flex:1">
+                        <div class="log-name">${info.name}</div>
+                        <span class="log-prob ${pc}">${(det.prob * 100).toFixed(1)}%</span>
+                    </div>`;
+                logContainer.prepend(entry);
+
+                while (logContainer.children.length > 50) logContainer.removeChild(logContainer.lastChild);
+                totalDetections++;
+                if (classCounts[det.class] !== undefined) classCounts[det.class]++;
+            });
+            updateStats();
+        };
+
+        window.updateVolume = function(pct) {
+            volFill.style.width = pct + '%';
+        };
+
+        window.onNativeReady = function() {
+            statusBadge.classList.remove('active');
+            statusText.textContent = '就绪';
+        };
+
+        window.onNativeError = function(msg) {
+            statusText.textContent = '错误: ' + msg;
+            statusBadge.style.background = '#7f1d1d';
+        };
+
+        // 原生端通知前端状态变化
+        window.onNativeStateChange = function(state) {
+            if (state === 'recording') {
+                isRecording = true;
+                startBtn.disabled = true; stopBtn.disabled = false;
+                statusBadge.classList.add('active');
+                statusText.textContent = '实时监听中';
+                document.getElementById('currentEngine').textContent = modelSelect.options[modelSelect.selectedIndex].text;
+                drawMockWave();
+            } else {
+                isRecording = false;
+                startBtn.disabled = false; stopBtn.disabled = true;
+                statusBadge.classList.remove('active');
+                statusText.textContent = '已暂停';
+                volFill.style.width = '0%';
+            }
+        };
+
+        function updateStats() {
+            document.getElementById('totalCount').textContent = totalDetections;
+            for (const [cls, cnt] of Object.entries(classCounts)) {
+                const el = document.getElementById('cnt-' + cls);
+                if (el) el.textContent = cnt;
+            }
+        }
+    </script>
+</body>
+</html>
