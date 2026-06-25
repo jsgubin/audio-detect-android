@@ -36,19 +36,35 @@ jobs:
         chmod +x gradlew
 
     - name: Build APK
-      shell: bash
       run: |
         cd android
-        ./gradlew assembleDebug --no-daemon --stacktrace > build.log 2>&1
-        cat build.log
-        if grep -q "BUILD FAILED" build.log; then
-          echo "=== DETAILED ERROR LOGS ==="
-          find app/build -name "*.log" -type f 2>/dev/null | while read f; do
-            echo "--- $f ---"
-            cat "$f"
-          done
-          exit 1
+        ./gradlew assembleDebug --no-daemon --stacktrace || true
+        echo "=== GRADLE EXIT CODE: $? ==="
+
+    - name: Print all errors from build
+      if: always()
+      run: |
+        echo "=== SEARCHING FOR BUILD ERRORS ==="
+        cd android
+        # 查找所有编译日志
+        find . -path "*/build/outputs/logs/*" -name "*.log" -type f 2>/dev/null | head -20
+        # 查找 Kotlin 编译器日志
+        find . -path "*/build/kotlin/*" -type f 2>/dev/null | head -20
+        # 打印 gradle 错误
+        if [ -f build.log ]; then
+          echo "=== build.log ==="
+          cat build.log | tail -100
         fi
+        # 打印所有 stderr 日志
+        for f in $(find app/build -name "*.log" -type f 2>/dev/null); do
+          echo "=== LOG: $f ==="
+          cat "$f" | tail -50
+        done
+        # 打印所有 .xml 报告
+        for f in $(find app/build/reports -name "*.xml" -type f 2>/dev/null); do
+          echo "=== REPORT: $f ==="
+          cat "$f" | tail -50
+        done
 
     - name: Upload debug APK
       if: success()
@@ -58,12 +74,10 @@ jobs:
         path: android/app/build/outputs/apk/debug/app-debug.apk
         if-no-files-found: error
 
-    - name: Upload build outputs on failure
+    - name: Upload entire build directory on failure
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: build-debug-output
-        path: |
-          android/build.log
-          android/app/build/
+        name: build-directory
+        path: android/app/build/
         if-no-files-found: warn
