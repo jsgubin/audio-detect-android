@@ -82,7 +82,7 @@ class AudioPreprocessor {
         // 4. 提取 Mel 频谱 (128 bins)
         val melSpec = computeMelSpectrogram(wav, sampleRate, N_MELS_128, 1024, 512)
         val logMel = Array(N_MELS_128) { m ->
-            FloatArray(melSpec[0].size) { f -> ln(melSpec[m][f] + 1e-9f) }
+            FloatArray(melSpec[0].size) { f -> ln(melSpec[m][f].toDouble() + 1e-9).toFloat() }
         }
 
         // 5. 双线性插值到 128x256（简化：直接裁剪或填充）
@@ -171,10 +171,10 @@ class AudioPreprocessor {
                 if (melSpec[m][f] > maxVal) maxVal = melSpec[m][f]
             }
         }
-        val ref = max(maxVal, 1e-10f)
+        val ref = max(maxVal.toDouble(), 1e-10)
         return Array(melSpec.size) { m ->
             FloatArray(melSpec[m].size) { f ->
-                10.0f * log10(max(melSpec[m][f] / ref, 1e-10f))
+                (10.0 * log10(max(melSpec[m][f].toDouble() / ref, 1e-10))).toFloat()
             }
         }
     }
@@ -198,7 +198,7 @@ class AudioPreprocessor {
     /** 生成 Hamming 窗 */
     private fun hammingWindow(size: Int): FloatArray {
         return FloatArray(size) { i ->
-            0.54f - 0.46f * cos(2.0f * PI.toFloat() * i / (size - 1))
+            (0.54 - 0.46 * cos(2.0 * PI * i / (size - 1))).toFloat()
         }
     }
 
@@ -228,8 +228,8 @@ class AudioPreprocessor {
         return filterBank
     }
 
-    private fun hzToMel(hz: Float): Float = 1127.0f * ln(1.0f + hz / 700.0f)
-    private fun melToHz(mel: Float): Float = 700.0f * (exp(mel / 1127.0f) - 1.0f)
+    private fun hzToMel(hz: Float): Float = (1127.0 * ln(1.0 + hz / 700.0)).toFloat()
+    private fun melToHz(mel: Float): Float = (700.0 * (exp(mel / 1127.0) - 1.0)).toFloat()
 
     /** 简化 FFT（Cooley-Tukey） */
     private fun fft(real: FloatArray, imag: FloatArray) {
@@ -254,9 +254,9 @@ class AudioPreprocessor {
         var len = 2
         while (len <= n) {
             val half = len / 2
-            val ang = (2.0 * PI / len).toFloat()
-            val wlenR = cos(ang)
-            val wlenI = sin(ang)
+            val ang = 2.0 * PI / len
+            val wlenR = cos(ang).toFloat()
+            val wlenI = sin(ang).toFloat()
             for (i in 0 until n step len) {
                 var wR = 1.0f
                 var wI = 0.0f
