@@ -2,7 +2,6 @@ package com.example.audio
 
 import android.content.Context
 import org.pytorch.IValue
-import org.pytorch.LiteModuleLoader
 import org.pytorch.Module
 import org.pytorch.Tensor
 import java.io.File
@@ -48,7 +47,7 @@ class ModelInference(private val context: Context) {
             }
         }
 
-        module = LiteModuleLoader.load(file.absolutePath)
+        module = Module.load(file.absolutePath)
         currentModel = modelName
     }
 
