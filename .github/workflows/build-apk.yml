@@ -21,13 +21,18 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Accept Android SDK licenses
-      run: yes | sdkmanager --licenses || true
-
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
-      with:
-        packages: 'build-tools;34.0.0 platforms;android-34'
+      # 不指定 packages，避免触发交互式许可证确认
+
+    - name: Accept licenses and install SDK packages
+      run: |
+        export ANDROID_HOME=${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}
+        export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/cmdline-tools/bin
+        yes | sdkmanager --licenses || true
+        sdkmanager "build-tools;34.0.0" "platforms;android-34"
+        echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+        echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
 
     - name: Download Gradle wrapper
       run: |
