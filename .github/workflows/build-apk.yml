@@ -60,7 +60,7 @@ jobs:
 
     - name: Reconvert models for PyTorch Lite
       run: |
-        pip install torch==2.1.0 --index-url https://download.pytorch.org/whl/cpu
+        pip install torch==2.2.0+cpu --index-url https://download.pytorch.org/whl/cpu
         python3 << 'EOF'
         import torch
         import os
