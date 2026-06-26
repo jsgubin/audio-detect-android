@@ -38,6 +38,34 @@ jobs:
         ls -la gradlew
         chmod +x gradlew
 
+    - name: Reconvert models for PyTorch Lite
+      run: |
+        pip install torch==2.1.0 --index-url https://download.pytorch.org/whl/cpu
+        python3 << 'EOF'
+        import torch
+        import os
+
+        models_dir = "android/app/src/main/assets/models"
+        models = ["efficientat_lite.pt", "panns_cnn6.pt", "mobilenetv1.pt"]
+
+        for name in models:
+            path = os.path.join(models_dir, name)
+            if not os.path.exists(path):
+                print(f"SKIP: {path} not found")
+                continue
+            print(f"Converting {name} ...")
+            try:
+                model = torch.jit.load(path, map_location="cpu")
+                model.eval()
+                # Overwrite with lite-compatible format
+                model._save_for_lite_interpreter(path)
+                print(f"  OK: {name} re-saved for lite interpreter")
+            except Exception as e:
+                print(f"  FAIL: {e}")
+                raise
+        print("All models converted successfully")
+        EOF
+
     - name: Build APK
       run: |
         cd android
