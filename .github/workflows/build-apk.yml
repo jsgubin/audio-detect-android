@@ -21,18 +21,28 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
-      # 不指定 packages，避免触发交互式许可证确认
-
-    - name: Accept licenses and install SDK packages
+    - name: Install Android SDK and accept licenses
       run: |
-        export ANDROID_HOME=${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}
-        export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/cmdline-tools/bin
-        yes | sdkmanager --licenses || true
-        sdkmanager "build-tools;34.0.0" "platforms;android-34"
-        echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-        echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+        ANDROID_SDK="${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}"
+        CMDLINE_TOOLS="${ANDROID_SDK}/cmdline-tools/latest/bin"
+        
+        # 如果 cmdline-tools 不存在，自动下载
+        if [ ! -f "${CMDLINE_TOOLS}/sdkmanager" ]; then
+          mkdir -p "${ANDROID_SDK}/cmdline-tools"
+          cd "${ANDROID_SDK}/cmdline-tools"
+          curl -sL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o cmdline-tools.zip
+          unzip -q cmdline-tools.zip
+          mv cmdline-tools latest
+        fi
+        
+        # 确保环境变量和 PATH
+        echo "${ANDROID_SDK}/cmdline-tools/latest/bin" >> $GITHUB_PATH
+        echo "ANDROID_SDK_ROOT=${ANDROID_SDK}" >> $GITHUB_ENV
+        echo "ANDROID_HOME=${ANDROID_SDK}" >> $GITHUB_ENV
+        
+        # 接受所有许可证并安装所需包
+        yes | "${ANDROID_SDK}/cmdline-tools/latest/bin/sdkmanager" --sdk_root="${ANDROID_SDK}" --licenses
+        "${ANDROID_SDK}/cmdline-tools/latest/bin/sdkmanager" --sdk_root="${ANDROID_SDK}" "build-tools;34.0.0" "platforms;android-34"
 
     - name: Download Gradle wrapper
       run: |
