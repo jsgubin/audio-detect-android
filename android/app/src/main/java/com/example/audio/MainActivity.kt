@@ -3,14 +3,12 @@ package com.example.audio
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.util.Log
 import android.webkit.*
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import org.pytorch.IValue
-import org.pytorch.LiteModuleLoader
-import org.pytorch.Module
 import org.pytorch.Tensor
 import java.io.File
 import java.io.FileOutputStream
@@ -22,6 +20,7 @@ class MainActivity : AppCompatActivity() {
         private const val REQUEST_AUDIO = 200
         private const val SAMPLE_RATE = 16000
         private const val CHUNK_DURATION_MS = 3000
+        private const val TAG = "MainActivity"
     }
 
     private lateinit var webView: WebView
@@ -80,63 +79,98 @@ class MainActivity : AppCompatActivity() {
 
     /** 开始音频侦测 */
     fun startDetection(modelName: String, vadThreshold: Float, confThreshold: Float) {
-        if (isRecording) return
-        isRecording = true
+        try {
+            if (isRecording) {
+                Log.d(TAG, "Already recording, ignoring start request")
+                return
+            }
+            isRecording = true
 
-        // 加载对应模型
-        modelInference.loadModel(modelName)
-
-        audioRecorder.start()
-
-        recordingThread = Thread {
-            while (isRecording) {
-                val startTime = System.currentTimeMillis()
-
-                // 录制 3 秒音频
-                val audioBuffer = audioRecorder.read(CHUNK_DURATION_MS)
-                if (audioBuffer == null || audioBuffer.isEmpty()) {
-                    Thread.sleep(100)
-                    continue
-                }
-
-                // VAD 检测（简单峰值检测）
-                val maxAmp = audioBuffer.maxOf { kotlin.math.abs(it.toInt()) }
-                if (maxAmp < vadThreshold * 32768) {
-                    // 静音，跳过
-                    continue
-                }
-
-                // 预处理
-                val inputTensor = when (modelName) {
-                    "mobilenet" -> preprocessor.preprocessForMobileNet(audioBuffer, SAMPLE_RATE)
-                    else -> preprocessor.preprocessForEfficientAT(audioBuffer, SAMPLE_RATE)
-                }
-
-                // 推理
-                val results = modelInference.run(inputTensor, confThreshold)
-
-                // 发送结果到前端
+            // 加载对应模型
+            if (!modelInference.loadModel(modelName)) {
+                isRecording = false
                 runOnUiThread {
-                    jsBridge.sendDetections(results)
+                    jsBridge.sendError("模型加载失败，请检查模型文件是否正确")
                 }
+                return
+            }
 
-                // 补偿时间，确保约 3 秒一个循环
-                val elapsed = System.currentTimeMillis() - startTime
-                val sleepTime = CHUNK_DURATION_MS - elapsed
-                if (sleepTime > 0) {
-                    Thread.sleep(sleepTime)
+            audioRecorder.start()
+
+            recordingThread = Thread {
+                try {
+                    while (isRecording) {
+                        try {
+                            val startTime = System.currentTimeMillis()
+
+                            // 录制 3 秒音频
+                            val audioBuffer = audioRecorder.read(CHUNK_DURATION_MS)
+                            if (audioBuffer == null || audioBuffer.isEmpty()) {
+                                Thread.sleep(100)
+                                continue
+                            }
+
+                            // VAD 检测（简单峰值检测）
+                            val maxAmp = audioBuffer.maxOf { kotlin.math.abs(it.toInt()) }
+                            if (maxAmp < vadThreshold * 32768) {
+                                // 静音，跳过
+                                continue
+                            }
+
+                            // 预处理
+                            val inputTensor = when (modelName) {
+                                "mobilenet" -> preprocessor.preprocessForMobileNet(audioBuffer, SAMPLE_RATE)
+                                else -> preprocessor.preprocessForEfficientAT(audioBuffer, SAMPLE_RATE)
+                            }
+
+                            // 推理
+                            val results = modelInference.run(inputTensor, confThreshold)
+
+                            // 发送结果到前端
+                            runOnUiThread {
+                                jsBridge.sendDetections(results)
+                            }
+
+                            // 补偿时间，确保约 3 秒一个循环
+                            val elapsed = System.currentTimeMillis() - startTime
+                            val sleepTime = CHUNK_DURATION_MS - elapsed
+                            if (sleepTime > 0) {
+                                Thread.sleep(sleepTime)
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error in audio processing loop", e)
+                            Thread.sleep(100)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Recording thread fatal error", e)
+                } finally {
+                    try {
+                        audioRecorder.stop()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error stopping audio recorder", e)
+                    }
                 }
             }
-            audioRecorder.stop()
+            recordingThread?.start()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start detection", e)
+            isRecording = false
+            runOnUiThread {
+                jsBridge.sendError("启动侦测失败: ${e.message}")
+            }
         }
-        recordingThread?.start()
     }
 
     /** 停止音频侦测 */
     fun stopDetection() {
-        isRecording = false
-        recordingThread?.join(500)
-        recordingThread = null
+        try {
+            isRecording = false
+            recordingThread?.join(500)
+            recordingThread = null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping detection", e)
+        }
     }
 
     /** JS 桥接接口 */

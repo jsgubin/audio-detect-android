@@ -64,24 +64,44 @@ jobs:
         python3 << 'EOF'
         import torch
         import os
+        import sys
+        import zipfile
 
         models_dir = "android/app/src/main/assets/models"
         models = ["efficientat_lite.pt", "panns_cnn6.pt", "mobilenetv1.pt"]
 
+        all_ok = True
         for name in models:
             path = os.path.join(models_dir, name)
             if not os.path.exists(path):
                 print(f"SKIP: {path} not found")
                 continue
-            print(f"Converting {name} ...")
+            size = os.path.getsize(path)
+            if size < 1000:
+                print(f"SKIP: {name} is too small ({size} bytes), likely a Git LFS pointer")
+                continue
+            print(f"Converting {name} ({size} bytes)...")
             try:
                 model = torch.jit.load(path, map_location="cpu")
                 model.eval()
                 model._save_for_lite_interpreter(path)
                 print(f"  OK: {name} re-saved for lite interpreter")
+
+                # 验证转换后的文件包含 bytecode.pkl
+                with zipfile.ZipFile(path, 'r') as zf:
+                    namelist = zf.namelist()
+                    has_bytecode = 'bytecode.pkl' in namelist or any('bytecode' in n for n in namelist)
+                    print(f"  Files: {namelist[:5]}...")
+                    print(f"  Has bytecode: {has_bytecode}")
+                    if not has_bytecode:
+                        print(f"  WARNING: No bytecode found in {name}")
+                        all_ok = False
             except Exception as e:
                 print(f"  FAIL: {e}")
-                raise
+                all_ok = False
+
+        if not all_ok:
+            sys.exit(1)
         print("All models converted successfully")
         EOF
 
