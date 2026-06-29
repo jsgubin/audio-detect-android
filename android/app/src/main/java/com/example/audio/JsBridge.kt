@@ -32,6 +32,13 @@ class JsBridge(private val webView: WebView) {
     }
 
     /**
+     * 通知前端状态变化
+     */
+    fun sendStateChange(state: String) {
+        evaluateJs("window.onNativeStateChange && window.onNativeStateChange('$state')")
+    }
+
+    /**
      * 发送错误信息
      */
     fun sendError(msg: String) {
