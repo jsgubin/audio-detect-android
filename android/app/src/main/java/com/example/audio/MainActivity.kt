@@ -153,6 +153,9 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             recordingThread?.start()
+
+            // 通知前端已开始
+            jsBridge.sendStateChange("recording")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start detection", e)
             isRecording = false
@@ -168,6 +171,7 @@ class MainActivity : AppCompatActivity() {
             isRecording = false
             recordingThread?.join(500)
             recordingThread = null
+            jsBridge.sendStateChange("stopped")
         } catch (e: Exception) {
             Log.e(TAG, "Error stopping detection", e)
         }
