@@ -1,0 +1,20 @@
+{
+  "label_to_id": {
+    "alarm": 0,
+    "baby_cry": 1,
+    "car_horn": 2,
+    "Doorbell": 3,
+    "glass_shatter": 4,
+    "gun_shot": 5,
+    "negative": 6
+  },
+  "id_to_label": {
+    "0": "alarm",
+    "1": "baby_cry",
+    "2": "car_horn",
+    "3": "Doorbell",
+    "4": "glass_shatter",
+    "5": "gun_shot",
+    "6": "negative"
+  }
+}
