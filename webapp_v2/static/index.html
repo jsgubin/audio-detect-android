@@ -283,51 +283,120 @@
 
         stopBtn.addEventListener('click', () => {
             isRecording = false;
-            
+
             // 关闭所有麦克风轨道
             if (stream) {
                 stream.getTracks().forEach(track => track.stop());
             }
-            
+
+            // 关闭正在进行的 AudioContext 防止继续录音
+            if (currentAudioCtx) {
+                try { currentAudioCtx.close(); } catch(e) {}
+                currentAudioCtx = null;
+            }
+            if (currentProcessor) {
+                try { currentProcessor.disconnect(); } catch(e) {}
+                currentProcessor = null;
+            }
+            if (currentSource) {
+                try { currentSource.disconnect(); } catch(e) {}
+                currentSource = null;
+            }
+
             // UI 状态切换
             startBtn.disabled = false;
             stopBtn.disabled = true;
-            statusDiv.textContent = "系统已暂停。";
+            statusDiv.textContent = "System paused.";
             statusDiv.style.color = "#f39c12";
             waves.forEach(w => w.style.display = 'none');
         });
+
+        // 新增：使用 AudioContext 直接录制原始 PCM 并编码为 WAV
+        // 避免依赖 MediaRecorder 的 webm 格式（后端需要 ffmpeg 解码）
+        let currentAudioCtx = null;
+        let currentSource = null;
+        let currentProcessor = null;
+
+        function encodeWAV(samples, sampleRate) {
+            const buffer = new ArrayBuffer(44 + samples.length * 2);
+            const view = new DataView(buffer);
+            function writeString(offset, string) {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            }
+            writeString(0, 'RIFF');
+            view.setUint32(4, 36 + samples.length * 2, true);
+            writeString(8, 'WAVE');
+            writeString(12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);       // PCM
+            view.setUint16(22, 1, true);       // mono
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * 2, true);
+            view.setUint16(32, 2, true);       // block align
+            view.setUint16(34, 16, true);      // bits per sample
+            writeString(36, 'data');
+            view.setUint32(40, samples.length * 2, true);
+            for (let i = 0; i < samples.length; i++) {
+                let s = Math.max(-1, Math.min(1, samples[i]));
+                s = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                view.setInt16(44 + i * 2, s, true);
+            }
+            return new Blob([view], { type: 'audio/wav' });
+        }
 
         // 核心逻辑：循环录制，按模型动态决定每段时长（AST=10秒，其他=3秒）
         function recordLoop() {
             if (!isRecording) return;
 
             const chunkSec = (modelSelect.value === 'ast') ? 10 : 3;
+            const sampleRate = 16000;
 
-            // 使用 MediaRecorder 录制 webm 格式
-            const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-            const chunks = [];
+            // 创建 AudioContext 直接捕获原始 PCM（16000Hz 单声道，与后端对齐）
+            const ctx = new AudioContext({ sampleRate: sampleRate });
+            currentAudioCtx = ctx;
+            const src = ctx.createMediaStreamSource(stream);
+            currentSource = src;
+            const proc = ctx.createScriptProcessor(4096, 1, 1);
+            currentProcessor = proc;
+            const pcmChunks = [];
 
-            recorder.ondataavailable = e => {
-                if (e.data.size > 0) chunks.push(e.data);
+            src.connect(proc);
+            proc.connect(ctx.destination);
+
+            proc.onaudioprocess = (e) => {
+                if (!isRecording) return;
+                pcmChunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
             };
 
-            recorder.onstop = () => {
-                if (chunks.length > 0 && isRecording) {
-                    const blob = new Blob(chunks, { type: 'audio/webm' });
-                    sendToBackend(blob);
-                }
-            };
-
-            recorder.start();
-
-            // 精确地在 chunkSec 秒后停止当前录音，并递归开启下一段
+            // 在 chunkSec 秒后停止收集并发送
             setTimeout(() => {
-                if (recorder.state === 'recording') {
-                    recorder.stop();
-                    // 只要还没有点击停止按钮，立刻开启下一段监听
-                    if (isRecording) {
-                        recordLoop();
-                    }
+                proc.disconnect();
+                src.disconnect();
+                ctx.close();
+                currentAudioCtx = null;
+                currentSource = null;
+                currentProcessor = null;
+
+                if (!isRecording) return;
+
+                // 合并 PCM 数据
+                const totalLen = pcmChunks.reduce((sum, arr) => sum + arr.length, 0);
+                const merged = new Float32Array(totalLen);
+                let offset = 0;
+                for (const arr of pcmChunks) {
+                    merged.set(arr, offset);
+                    offset += arr.length;
+                }
+
+                // 编码为 WAV 并发送给后端
+                const wavBlob = encodeWAV(merged, sampleRate);
+                sendToBackend(wavBlob);
+
+                // 只要还在监听，递归开启下一段
+                if (isRecording) {
+                    recordLoop();
                 }
             }, chunkSec * 1000);
         }
@@ -335,7 +404,7 @@
         // 发送音频并处理响应
         async function sendToBackend(audioBlob) {
             const formData = new FormData();
-            formData.append("audio", audioBlob, "chunk.webm");
+            formData.append("audio", audioBlob, "chunk.wav");
             formData.append("model_choice", modelSelect.value);
 
             // 把当前阈值传给后端（支持实时动态调整）
