@@ -1,0 +1,23 @@
+# IDE
+.idea/
+*.iml
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Build
+build/
+.gradle/
+
+# Logs
+*.log
+
+# Tools
+tools/
+
+# 大模型文件（GitHub 限制 100MB）
+models/ast_best_model.pt
+models/best_model.pth
+models/best_model_v2.pth
