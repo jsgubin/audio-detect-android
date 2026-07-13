@@ -3,16 +3,10 @@ name: Build Android APK
 on:
   push:
     branches: [ main, master ]
-    # 监听 android_offline 目录变化，兼容根目录或 Android/ 子目录
     paths:
       - 'android_offline/**'
       - 'Android/android_offline/**'
       - '.github/workflows/build-apk.yml'
-  pull_request:
-    branches: [ main, master ]
-    paths:
-      - 'android_offline/**'
-      - 'Android/android_offline/**'
   workflow_dispatch:
 
 jobs:
@@ -30,31 +24,49 @@ jobs:
           distribution: 'temurin'
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          log-accepted-android-sdk-licenses: true
-
-      - name: Find gradlew path
-        id: find_gradle
         run: |
-          if [ -f "android_offline/gradlew" ]; then
+          # 安装 commandlinetools
+          sudo mkdir -p /usr/local/lib/android/sdk/cmdline-tools
+          cd /usr/local/lib/android/sdk/cmdline-tools
+          curl -sL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o tools.zip
+          sudo unzip -q tools.zip
+          sudo mv cmdline-tools latest
+          sudo rm tools.zip
+          export ANDROID_HOME=/usr/local/lib/android/sdk
+          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
+          # 自动接受所有 license
+          yes | sdkmanager --licenses || true
+          # 安装必要组件
+          sdkmanager "platforms;android-34" "build-tools;34.0.0" "ndk;25.2.9519653"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
+
+      - name: Find project path
+        id: find_path
+        run: |
+          if [ -d "android_offline" ] && [ -f "android_offline/gradlew" ]; then
             echo "path=android_offline" >> $GITHUB_OUTPUT
-          elif [ -f "Android/android_offline/gradlew" ]; then
+            echo "found at root: android_offline"
+          elif [ -d "Android/android_offline" ] && [ -f "Android/android_offline/gradlew" ]; then
             echo "path=Android/android_offline" >> $GITHUB_OUTPUT
+            echo "found at: Android/android_offline"
           else
-            echo "path=android_offline" >> $GITHUB_OUTPUT
+            echo "ERROR: cannot find android_offline project"
+            exit 1
           fi
 
       - name: Grant execute permission for gradlew
-        run: chmod +x ${{ steps.find_gradle.outputs.path }}/gradlew
+        run: chmod +x ${{ steps.find_path.outputs.path }}/gradlew
 
       - name: Build APK with Gradle
-        working-directory: ./${{ steps.find_gradle.outputs.path }}
-        run: ./gradlew assembleDebug
+        working-directory: ./${{ steps.find_path.outputs.path }}
+        run: ./gradlew assembleDebug --stacktrace
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
-          path: ${{ steps.find_gradle.outputs.path }}/app/build/outputs/apk/debug/app-debug.apk
+          path: ${{ steps.find_path.outputs.path }}/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
