@@ -14,7 +14,6 @@ android {
         versionCode = 1
         versionName = "1.0"
         
-        // 支持多架构（小米等国产机常用 arm64-v8a 和 armeabi-v7a）
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a")
         }
@@ -35,6 +34,11 @@ android {
     }
     kotlinOptions {
         jvmTarget = "1.8"
+    }
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
     }
 }
 

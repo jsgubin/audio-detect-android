@@ -48,9 +48,13 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ${{ steps.find_path.outputs.path }}/gradlew
 
+      - name: Accept Android SDK licenses
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || yes | $ANDROID_HOME/cmdline-tools/bin/sdkmanager --licenses || true
+
       - name: Build APK with Gradle
         working-directory: ./${{ steps.find_path.outputs.path }}
-        run: ./gradlew assembleDebug --stacktrace
+        run: ./gradlew assembleDebug --stacktrace --no-daemon
+        timeout-minutes: 15
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
