@@ -28,7 +28,6 @@ jobs:
       - name: Find project path
         id: find_path
         run: |
-          # 注意：GitHub 仓库中的路径是小写的 android/android_offline
           if [ -d "android/android_offline" ] && [ -f "android/android_offline/gradlew" ]; then
             echo "path=android/android_offline" >> $GITHUB_OUTPUT
             echo "found at: android/android_offline"
@@ -37,11 +36,7 @@ jobs:
             echo "found at: Android/android_offline"
           else
             echo "ERROR: cannot find android_offline project"
-            echo "Listing root dir:"
             ls -la
-            echo "---"
-            echo "Listing android/ or Android/:"
-            ls -d android android_offline Android 2>/dev/null || true
             exit 1
           fi
 
@@ -68,17 +63,6 @@ jobs:
           tail -n 300 build.log || true
           echo "=== Gradle errors ==="
           grep -i "error\|failed\|exception\|cannot" build.log | head -50 || true
-          echo "=== END LOG ==="
-        working-directory: ./${{ steps.find_path.outputs.path }}
-        run: ./gradlew assembleDebug --stacktrace --no-daemon 2>&1 | tee build.log
-        timeout-minutes: 15
-
-      - name: Print build log on failure
-        if: failure()
-        working-directory: ./${{ steps.find_path.outputs.path }}
-        run: |
-          echo "=== BUILD FAILURE LOG ==="
-          tail -n 200 build.log || true
           echo "=== END LOG ==="
 
       - name: Upload APK artifact
