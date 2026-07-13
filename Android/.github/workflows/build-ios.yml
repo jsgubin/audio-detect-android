@@ -1,0 +1,48 @@
+name: Build iOS App
+
+on:
+  push:
+    branches: [ main, master, ios ]
+    paths:
+      - 'ios_audio_detect/**'
+      - '.github/workflows/build-ios.yml'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'ios_audio_detect/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Select Xcode version
+        run: sudo xcode-select -s /Applications/Xcode_15.0.app/Contents/Developer
+
+      - name: Build Swift Package
+        working-directory: ./ios_audio_detect
+        run: |
+          # 如果是 Swift Package Manager 项目
+          swift build
+          
+          # 如果是 Xcode 项目（需要 .xcodeproj）
+          # xcodebuild -project AudioDetect.xcodeproj -scheme AudioDetect -configuration Debug -sdk iphonesimulator build
+
+      - name: Create IPA (optional)
+        if: github.ref == 'refs/heads/main'
+        working-directory: ./ios_audio_detect
+        run: |
+          echo "iOS 应用需要签名才能安装到真机。"
+          echo "Debug 版本可以在模拟器运行。"
+          echo "要分发到真机，需要 Apple Developer 账号和签名证书。"
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build
+          path: ios_audio_detect/
+          if-no-files-found: warn
