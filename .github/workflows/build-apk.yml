@@ -25,21 +25,36 @@ jobs:
 
       - name: Setup Android SDK
         run: |
-          # 安装 commandlinetools
-          sudo mkdir -p /usr/local/lib/android/sdk/cmdline-tools
-          cd /usr/local/lib/android/sdk/cmdline-tools
-          curl -sL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o tools.zip
-          sudo unzip -q tools.zip
-          sudo mv cmdline-tools latest
-          sudo rm tools.zip
-          export ANDROID_HOME=/usr/local/lib/android/sdk
-          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
+          # 检查是否已有 Android SDK（ubuntu runner 可能预装）
+          if [ -d "$ANDROID_HOME/cmdline-tools" ] || [ -d "$ANDROID_HOME/tools" ]; then
+            echo "Android SDK already installed at $ANDROID_HOME"
+          else
+            echo "Installing Android SDK from scratch..."
+            sudo mkdir -p /usr/local/lib/android/sdk/cmdline-tools
+            cd /usr/local/lib/android/sdk/cmdline-tools
+            curl -fL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o tools.zip
+            if [ ! -f tools.zip ]; then
+              echo "ERROR: Failed to download commandlinetools"
+              exit 1
+            fi
+            sudo unzip -q tools.zip
+            sudo rm tools.zip
+            sudo mv cmdline-tools latest
+            export ANDROID_HOME=/usr/local/lib/android/sdk
+            echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          fi
+          
+          # 确保 sdkmanager 在 PATH 中
+          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/tools/bin
+          
           # 自动接受所有 license
           yes | sdkmanager --licenses || true
-          # 安装必要组件
-          sdkmanager "platforms;android-34" "build-tools;34.0.0" "ndk;25.2.9519653"
+          
+          # 安装编译所需组件（不需要 NDK，纯 Kotlin 项目）
+          sdkmanager "platforms;android-34" "build-tools;34.0.0"
+          
           echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-          echo "PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
+          echo "PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/tools/bin:$PATH" >> $GITHUB_ENV
 
       - name: Find project path
         id: find_path
@@ -61,8 +76,6 @@ jobs:
       - name: Build APK with Gradle
         working-directory: ./${{ steps.find_path.outputs.path }}
         run: ./gradlew assembleDebug --stacktrace
-        env:
-          ANDROID_HOME: /usr/local/lib/android/sdk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
