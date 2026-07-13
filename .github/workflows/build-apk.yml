@@ -65,6 +65,14 @@ jobs:
           grep -i "error\|failed\|exception\|cannot" build.log | head -50 || true
           echo "=== END LOG ==="
 
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: ${{ steps.find_path.outputs.path }}/build.log
+          if-no-files-found: ignore
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
