@@ -46,32 +46,23 @@ jobs:
       - name: Accept Android SDK licenses
         run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || yes | $ANDROID_HOME/cmdline-tools/bin/sdkmanager --licenses || true
 
+      - name: Show project files
+        run: |
+          echo "=== Project structure ==="
+          ls -la ${{ steps.find_path.outputs.path }}/
+          echo "=== app/build.gradle.kts ==="
+          cat ${{ steps.find_path.outputs.path }}/app/build.gradle.kts
+          echo "=== settings.gradle.kts ==="
+          cat ${{ steps.find_path.outputs.path }}/settings.gradle.kts
+
       - name: Build APK with Gradle
         working-directory: ./${{ steps.find_path.outputs.path }}
         run: |
-          echo "=== Gradle Version ==="
+          set -x
           ./gradlew --version
-          echo "=== Starting Build ==="
-          ./gradlew assembleDebug --stacktrace --info --no-daemon 2>&1 | tee build.log
+          ./gradlew assembleDebug --stacktrace --info --no-daemon
         timeout-minutes: 20
-
-      - name: Print build log on failure
-        if: failure()
-        working-directory: ./${{ steps.find_path.outputs.path }}
-        run: |
-          echo "=== BUILD FAILURE LOG (last 300 lines) ==="
-          tail -n 300 build.log || true
-          echo "=== Gradle errors ==="
-          grep -i "error\|failed\|exception\|cannot" build.log | head -50 || true
-          echo "=== END LOG ==="
-
-      - name: Upload build log on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log
-          path: ${{ steps.find_path.outputs.path }}/build.log
-          if-no-files-found: ignore
+        shell: bash
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
