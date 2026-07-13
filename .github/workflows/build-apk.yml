@@ -3,13 +3,16 @@ name: Build Android APK
 on:
   push:
     branches: [ main, master ]
+    # 监听 android_offline 目录变化，兼容根目录或 Android/ 子目录
     paths:
       - 'android_offline/**'
+      - 'Android/android_offline/**'
       - '.github/workflows/build-apk.yml'
   pull_request:
     branches: [ main, master ]
     paths:
       - 'android_offline/**'
+      - 'Android/android_offline/**'
   workflow_dispatch:
 
 jobs:
@@ -31,23 +34,27 @@ jobs:
         with:
           log-accepted-android-sdk-licenses: true
 
+      - name: Find gradlew path
+        id: find_gradle
+        run: |
+          if [ -f "android_offline/gradlew" ]; then
+            echo "path=android_offline" >> $GITHUB_OUTPUT
+          elif [ -f "Android/android_offline/gradlew" ]; then
+            echo "path=Android/android_offline" >> $GITHUB_OUTPUT
+          else
+            echo "path=android_offline" >> $GITHUB_OUTPUT
+          fi
+
       - name: Grant execute permission for gradlew
-        run: chmod +x android_offline/gradlew
+        run: chmod +x ${{ steps.find_gradle.outputs.path }}/gradlew
 
       - name: Build APK with Gradle
-        working-directory: ./android_offline
+        working-directory: ./${{ steps.find_gradle.outputs.path }}
         run: ./gradlew assembleDebug
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
-          path: android_offline/app/build/outputs/apk/debug/app-debug.apk
+          path: ${{ steps.find_gradle.outputs.path }}/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-
-      - name: Upload APK to Release (optional)
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-debug-apk-release
-          path: android_offline/app/build/outputs/apk/debug/app-debug.apk
