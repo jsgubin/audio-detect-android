@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main, master ]
     paths:
-      - 'android_offline/**'
+      - 'android/android_offline/**'
       - 'Android/android_offline/**'
       - '.github/workflows/build-apk.yml'
   workflow_dispatch:
@@ -12,7 +12,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Ubuntu runner 已预装 Android SDK，直接设置环境变量即可
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
 
@@ -26,23 +25,23 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Verify Android SDK
-        run: |
-          echo "ANDROID_HOME: $ANDROID_HOME"
-          ls -la $ANDROID_HOME/platforms/ || true
-          ls -la $ANDROID_HOME/build-tools/ || true
-
       - name: Find project path
         id: find_path
         run: |
-          if [ -d "android_offline" ] && [ -f "android_offline/gradlew" ]; then
-            echo "path=android_offline" >> $GITHUB_OUTPUT
-            echo "found at root: android_offline"
+          # 注意：GitHub 仓库中的路径是小写的 android/android_offline
+          if [ -d "android/android_offline" ] && [ -f "android/android_offline/gradlew" ]; then
+            echo "path=android/android_offline" >> $GITHUB_OUTPUT
+            echo "found at: android/android_offline"
           elif [ -d "Android/android_offline" ] && [ -f "Android/android_offline/gradlew" ]; then
             echo "path=Android/android_offline" >> $GITHUB_OUTPUT
             echo "found at: Android/android_offline"
           else
             echo "ERROR: cannot find android_offline project"
+            echo "Listing root dir:"
+            ls -la
+            echo "---"
+            echo "Listing android/ or Android/:"
+            ls -d android android_offline Android 2>/dev/null || true
             exit 1
           fi
 
