@@ -53,6 +53,23 @@ jobs:
 
       - name: Build APK with Gradle
         working-directory: ./${{ steps.find_path.outputs.path }}
+        run: |
+          echo "=== Gradle Version ==="
+          ./gradlew --version
+          echo "=== Starting Build ==="
+          ./gradlew assembleDebug --stacktrace --info --no-daemon 2>&1 | tee build.log
+        timeout-minutes: 20
+
+      - name: Print build log on failure
+        if: failure()
+        working-directory: ./${{ steps.find_path.outputs.path }}
+        run: |
+          echo "=== BUILD FAILURE LOG (last 300 lines) ==="
+          tail -n 300 build.log || true
+          echo "=== Gradle errors ==="
+          grep -i "error\|failed\|exception\|cannot" build.log | head -50 || true
+          echo "=== END LOG ==="
+        working-directory: ./${{ steps.find_path.outputs.path }}
         run: ./gradlew assembleDebug --stacktrace --no-daemon 2>&1 | tee build.log
         timeout-minutes: 15
 

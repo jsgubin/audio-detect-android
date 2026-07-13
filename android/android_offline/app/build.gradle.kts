@@ -49,8 +49,8 @@ dependencies {
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("androidx.cardview:cardview:1.0.0")
 
-    // PyTorch Mobile (Android) - 轻量版
-    implementation("org.pytorch:pytorch_android_lite:1.13.1")
+    // PyTorch Mobile (Android) - 使用更稳定的 1.10.0 版本
+    implementation("org.pytorch:pytorch_android_lite:1.10.0")
 
     // JTransforms for FFT
     implementation("com.github.wendykierp:JTransforms:3.1")
