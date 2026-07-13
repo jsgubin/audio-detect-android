@@ -46,10 +46,8 @@ dependencies {
     implementation("androidx.cardview:cardview:1.0.0")
 
     // PyTorch Mobile (Android) - 轻量版
-    // 如果 1.12.1 找不到，编译时会报错，请改为 1.13.0 或 1.10.0
-    implementation("org.pytorch:pytorch_android_lite:1.13.0")
+    implementation("org.pytorch:pytorch_android_lite:1.13.1")
 
     // JTransforms for FFT
-    // 备选坐标（如果 pl.edu.icm 找不到，可尝试 com.github.wendykierp）
-    implementation("pl.edu.icm:JTransforms:3.1")
+    implementation("com.github.wendykierp:JTransforms:3.1")
 }
