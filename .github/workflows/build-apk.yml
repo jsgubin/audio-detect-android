@@ -53,8 +53,16 @@ jobs:
 
       - name: Build APK with Gradle
         working-directory: ./${{ steps.find_path.outputs.path }}
-        run: ./gradlew assembleDebug --stacktrace --no-daemon
+        run: ./gradlew assembleDebug --stacktrace --no-daemon 2>&1 | tee build.log
         timeout-minutes: 15
+
+      - name: Print build log on failure
+        if: failure()
+        working-directory: ./${{ steps.find_path.outputs.path }}
+        run: |
+          echo "=== BUILD FAILURE LOG ==="
+          tail -n 200 build.log || true
+          echo "=== END LOG ==="
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
