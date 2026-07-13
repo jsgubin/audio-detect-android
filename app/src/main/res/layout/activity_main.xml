@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="#f4f7f6">
+
+    <!-- 标题 -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="🎤 实时环境音识别"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:textColor="#2c3e50"
+        android:gravity="center"
+        android:paddingBottom="8dp" />
+
+    <!-- 模型状态 -->
+    <TextView
+        android:id="@+id/modelStatusText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="检查模型..."
+        android:textSize="12sp"
+        android:gravity="center"
+        android:paddingBottom="8dp" />
+
+    <!-- 状态显示 -->
+    <TextView
+        android:id="@+id/statusText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="系统已就绪，点击开始监听"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="#f39c12"
+        android:gravity="center"
+        android:padding="12dp"
+        android:layout_marginBottom="12dp" />
+
+    <!-- 按钮行 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="16dp">
+
+        <Button
+            android:id="@+id/startBtn"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:text="▶ 开始监听"
+            android:backgroundTint="#27ae60"
+            android:textColor="#FFFFFF" />
+
+        <Button
+            android:id="@+id/stopBtn"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:text="⏹ 停止"
+            android:enabled="false"
+            android:backgroundTint="#c0392b"
+            android:textColor="#FFFFFF" />
+    </LinearLayout>
+
+    <!-- 日志区域 -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="识别日志"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:textColor="#333333"
+        android:paddingBottom="4dp" />
+
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:elevation="4dp"
+        android:radius="8dp"
+        android:background="#FFFFFF">
+
+        <ScrollView
+            android:id="@+id/scrollView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true">
+
+            <LinearLayout
+                android:id="@+id/logContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+        </ScrollView>
+    </androidx.cardview.widget.CardView>
+
+</LinearLayout>

@@ -1,208 +1,174 @@
-# 环境音识别 - 离线 Android APK（EfficientAT 模型）
+# 环境音识别 - 离线 Android APK（小米/通用版）
 
-本项目将 Web 服务的 EfficientAT 模型转换为 Android 离线 APK，无需网络连接，模型直接在手机上运行。
-
----
-
-## 🎯 技术方案
-
-| 组件 | 技术方案 | 说明 |
-|------|---------|------|
-| 模型推理 | PyTorch Mobile (TorchScript) | `efficientat_lite.pt` 加载到手机运行 |
-| 音频录制 | Android AudioRecord | 16kHz 16bit 单声道 PCM |
-| 频谱提取 | Kotlin 手写 STFT + Mel 滤波器 | 替代 librosa，JTransforms 做 FFT |
-| 预处理参数 | 预计算二进制文件 | Mel 滤波器矩阵 + Hann 窗从 assets 加载 |
+完全离线的 Android APK，支持小米及其他 Android 手机。使用 PyTorch Mobile 运行 EfficientAT 模型，本地识别 6 种声音并震动提醒。
 
 ---
 
-## 📁 项目结构
+## 🎯 功能
 
-```
-android_offline/                          ← 用 Android Studio 打开此目录
-├── gradlew / gradlew.bat                ← Gradle wrapper
-├── gradle/wrapper/
-│   ├── gradle-wrapper.jar
-│   └── gradle-wrapper.properties
-├── settings.gradle.kts
-├── build.gradle.kts
-├── gradle.properties
-├── app/
-│   ├── build.gradle.kts                  ← 依赖：PyTorch Mobile + JTransforms
-│   ├── proguard-rules.pro
-│   └── src/main/
-│       ├── AndroidManifest.xml
-│       ├── assets/
-│       │   ├── efficientat_lite.pt       ← 6.2 MB 模型（TorchScript）
-│       │   ├── mel_filter_bank.bin       ← 128 KB Mel 滤波器矩阵
-│       │   ├── hann_window.bin           ← 4 KB Hann 窗
-│       │   └── labels.txt                ← 6 个类别标签
-│       ├── java/com/audioapp/
-│       │   ├── MainActivity.kt           ← 主界面 + 录音循环
-│       │   ├── AudioRecorder.kt          ← AudioRecord 录制 PCM
-│       │   ├── MelSpectrogram.kt         ← STFT + Mel 提取 + 对数转换
-│       │   └── ModelInference.kt         ← PyTorch Mobile 加载 + 推理
-│       └── res/
-│           ├── layout/activity_main.xml
-│           └── values/
-│               ├── colors.xml
-│               ├── strings.xml
-│               └── themes.xml
-```
+- ✅ 完全离线，无需网络
+- ✅ 6 种声音识别：警报声、婴儿啼哭、汽车鸣笛、门铃声、玻璃破碎、枪声
+- ✅ 检测到声音时**手机震动**提醒
+- ✅ 适配 MIUI/小米手机（后台权限引导）
+- ✅ 3 秒循环录音，实时识别
 
 ---
 
-## ⚙️ 编译环境准备
+## 📱 小米手机安装步骤
 
-### 1. 安装 Android Studio
+### 1. 下载 APK
 
-下载地址：https://developer.android.com/studio
+从 GitHub Actions 下载编译好的 APK：
+1. 打开 GitHub 仓库 → **Actions** 标签
+2. 选择最新的 **Build Android APK** workflow
+3. 下载 **Artifacts** → `app-debug-apk`
+4. 解压 ZIP 得到 `app-debug.apk`
 
-安装时选择：
-- **Android SDK**（API 33 或更高）
-- **JDK 17**（Android Studio 自带，通常无需额外安装）
+### 2. 允许安装未知来源应用
 
-### 2. 验证 Java 环境
+小米手机需要额外开启权限：
+1. `设置 → 隐私保护 → 特殊权限设置 → 安装未知应用`
+2. 找到你的浏览器（或文件管理器）
+3. 开启 `允许来自此来源的应用`
+
+> 旧版 MIUI 路径：`设置 → 更多设置 → 系统安全 → 安装未知应用`
+
+### 3. 安装 APK
+
+点击下载的 APK 文件安装。
+
+### 4. 授予权限
+
+首次打开 App 时，会请求以下权限，**全部允许**：
+- **麦克风**（必须）：用于录音识别声音
+- **通知**（建议）：用于显示识别结果
+
+### 5. MIUI 后台权限设置（重要！）
+
+MIUI 对后台应用限制很严格，如果不设置，锁屏后 App 会被杀掉：
+
+1. **允许自启动**
+   - `手机管家 → 应用管理 → 权限 → 自启动管理`
+   - 找到 **"环境音识别"** → 开启自启动
+
+2. **后台运行权限**
+   - `设置 → 应用设置 → 应用管理 → 环境音识别 → 省电策略`
+   - 选择 **"无限制"**
+
+3. **锁屏显示**
+   - `设置 → 通知与控制中心 → 通知显示设置`
+   - 确保允许锁屏显示通知
+
+4. **忽略电池优化**
+   - `设置 → 省电与电池 → 右上角齿轮 → 应用智能省电`
+   - 找到 **"环境音识别"** → 选择 **"无限制"**
+
+> 💡 打开 App 时也会弹出 MIUI 权限引导对话框，点击"去设置"可快速跳转到应用设置页面。
+
+### 6. 开始使用
+
+1. 打开 App，等待模型加载（约 2-5 秒）
+2. 点击 **"开始监听"**
+3. App 每 3 秒录制一段音频，自动识别
+4. 检测到目标声音时，手机会**震动**并在屏幕上显示结果
+
+---
+
+## 🔧 其他 Android 手机安装
+
+除了小米，其他品牌（华为、OPPO、vivo、三星等）也可以安装：
+
+### 通用步骤
+1. 下载 APK 并安装
+2. 授予麦克风权限
+3. 在系统设置中允许该应用**后台运行**（各品牌路径不同）
+4. 开始监听
+
+### 各品牌后台设置路径
+
+| 品牌 | 设置路径 |
+|------|---------|
+| **华为** | `设置 → 电池 → 启动管理 → 环境音识别 → 允许后台运行` |
+| **OPPO** | `设置 → 电池 → 应用耗电管理 → 环境音识别 → 允许后台运行` |
+| **vivo** | `设置 → 电池 → 后台耗电管理 → 环境音识别 → 允许后台高耗电` |
+| **三星** | `设置 → 电池 → 不受限制的应用 → 添加环境音识别` |
+| **小米** | 见上方步骤 5 |
+
+---
+
+## ⚠️ 注意事项
+
+1. **电量消耗**：持续监听麦克风会增加耗电量，约每小时 5-10%。建议插电使用。
+2. **锁屏限制**：部分 Android 系统锁屏后会限制录音，建议保持屏幕常亮或开启"不锁定屏幕"选项。
+3. **误报**：环境噪音可能导致误报。可通过调节阈值（默认 0.6）来减少误报。
+4. **首次加载**：首次打开 App 加载模型需要 2-5 秒，请耐心等待。
+
+---
+
+## 🔨 自行编译
+
+如果你有 Android Studio，可以自行编译：
 
 ```bash
-java -version
-# 应该显示 Java 17 或更高
-```
-
-如果提示 `JAVA_HOME` 未设置，Windows 用户可以：
-```powershell
-# 在 Android Studio 中，File → Settings → Build → Build Tools → Gradle
-# 设置 Gradle JDK 为 Android Studio 自带的 JDK
+git clone https://github.com/YOUR_USERNAME/audio-detect-android.git
+cd audio-detect-android/android_offline
+./gradlew assembleDebug
+# APK 输出在: app/build/outputs/apk/debug/app-debug.apk
 ```
 
 ---
 
-## 🔨 编译步骤
+## 📦 APK 大小
 
-### 方式 A：Android Studio（推荐）
+| 组件 | 大小 |
+|------|------|
+| 模型 (efficientat_lite.pt) | 6.2 MB |
+| PyTorch Mobile 原生库 | ~15-20 MB |
+| App 代码 + 资源 | ~1 MB |
+| **总计** | **~25-30 MB** |
 
-1. **打开项目**：
-   ```
-   File → Open → 选择 android_offline 文件夹
-   ```
+---
 
-2. **等待 Gradle 同步**：
-   - 首次打开会自动下载 Gradle 和依赖（PyTorch Mobile + JTransforms）
-   - 如果卡在 `Downloading pytorch_android_lite...`，请耐心等待（约 100 MB）
+## 🛠️ 技术栈
 
-3. **编译 APK**：
-   ```
-   Build → Build Bundle(s) / APK(s) → Build APK(s)
-   ```
+| 组件 | 技术 |
+|------|------|
+| 模型推理 | PyTorch Mobile (TorchScript) |
+| 录音 | Android AudioRecord |
+| FFT | JTransforms |
+| Mel 提取 | Kotlin 手写（预计算滤波器） |
+| UI | Android XML Layout + Kotlin |
 
-4. **输出路径**：
-   ```
-   app/build/outputs/apk/debug/app-debug.apk
-   ```
+---
 
-### 方式 B：命令行（需已配置环境变量）
+## ❓ 常见问题
+
+**Q: 安装时提示"应用未安装"？**  
+A: 可能是 APK 架构不匹配。本 APK 支持 `arm64-v8a` 和 `armeabi-v7a`，覆盖绝大多数手机。如果还是失败，请检查手机是否开启了"安装未知应用"权限。
+
+**Q: 点击"开始监听"没反应？**  
+A: 检查麦克风权限是否已授予。MIUI 用户还需检查自启动权限。
+
+**Q: 识别不准确？**  
+A: 确保环境噪音不要太大。可尝试调高置信度阈值（需要修改代码重新编译）。
+
+**Q: 锁屏后停止识别？**  
+A: 这是 Android 系统限制。请按照上方"后台权限设置"步骤配置，或保持屏幕常亮。
+
+**Q: 有 iOS 版吗？**  
+A: 有 iOS 轻量版（利用系统声音识别 + 快捷指令），但 iOS 版需要 Mac + Xcode 编译，无法直接安装 APK。
+
+---
+
+## 📄 模型转换
+
+如需重新转换模型（更新了 `models/efficientat_lite_v3.pth`）：
 
 ```bash
-cd android_offline
-./gradlew assembleDebug          # Linux/macOS
-gradlew.bat assembleDebug        # Windows CMD
-```
-
-### 安装到手机
-
-```bash
-adb install app/build/outputs/apk/debug/app-debug.apk
-```
-
----
-
-## 📱 使用说明
-
-1. 打开 APP，等待模型加载（首次约 2-5 秒）
-2. 点击 **▶ 开始监听**
-3. APP 每 3 秒录制一段音频，自动识别 6 种声音：
-   - 🚨 警报声、👶 婴儿啼哭、🚗 汽车鸣笛、🚪 门铃声、💥 玻璃破碎、🔫 枪声
-4. 点击 **⏹ 停止** 结束监听
-
----
-
-## 🔧 常见问题
-
-### Q: 编译失败，提示找不到 `org.pytorch:pytorch_android_lite:1.13.0`
-
-A: 尝试改用其他版本：
-```kotlin
-// app/build.gradle.kts
-implementation("org.pytorch:pytorch_android_lite:1.12.0")
-// 或
-implementation("org.pytorch:pytorch_android:1.12.0")
-```
-
-### Q: 编译失败，提示找不到 JTransforms
-
-A: 尝试更换坐标：
-```kotlin
-// app/build.gradle.kts
-implementation("org.github.wendal:jtransforms:3.1")
-// 或
-implementation("pl.edu.icm:JTransforms:3.1")
-```
-
-### Q: 运行时提示 "模型加载失败"
-
-A: 检查 `app/src/main/assets/` 中是否有 `efficientat_lite.pt`（约 6MB）。如果缺失，需要重新运行模型转换脚本。
-
-### Q: 识别结果不准确
-
-A: 离线版使用了 Kotlin 重写的预处理，与 Python 的 librosa 可能存在微小数值差异。如果准确率明显下降，可以检查：
-1. `MelSpectrogram.kt` 中的 FFT 解析是否正确
-2. `power_to_db` 的参考值是否与训练时一致
-
----
-
-## 🔄 模型转换（如需重新转换）
-
-如果更新了 `models/efficientat_lite_v3.pth`，需要重新转换：
-
-```python
 python convert_for_android.py
-# 或手动运行 PythonRun 中的脚本
 ```
 
 这会重新生成：
 - `android_offline/app/src/main/assets/efficientat_lite.pt`
 - `android_offline/app/src/main/assets/mel_filter_bank.bin`
 - `android_offline/app/src/main/assets/hann_window.bin`
-
----
-
-## 📊 APK 大小估算
-
-| 组件 | 大小 |
-|------|------|
-| 模型 (efficientat_lite.pt) | ~6.2 MB |
-| PyTorch Mobile 原生库 (arm64) | ~15-20 MB |
-| JTransforms | ~2 MB |
-| App 代码 + 资源 | ~1 MB |
-| **APK 总计** | **~25-30 MB** |
-
----
-
-## ⚠️ 已知限制
-
-1. 只支持 **EfficientAT** 模型（6 分类），不支持 MobileNetV1 和 AST
-2. 当前只支持 **arm64-v8a** 架构，如需支持 armeabi-v7a，需在 `build.gradle.kts` 中修改 `android.arch` 配置
-3. 预处理用 Kotlin 重写，与 librosa 存在微小数值差异，理论上不影响准确率
-4. 首次启动加载模型需要 2-5 秒
-
----
-
-## 📝 与原 Web 版的差异
-
-| 项目 | Web 版 | 离线 APK 版 |
-|------|--------|------------|
-| 网络需求 | 需要后端服务器 | 完全离线 |
-| 模型支持 | EfficientAT + MobileNetV1 + AST | 仅 EfficientAT |
-| 预处理 | librosa (Python) | Kotlin + JTransforms |
-| 推理引擎 | PyTorch (CPU) | PyTorch Mobile (Android) |
-| APK 大小 | ~5 MB | ~25-30 MB |
-| 延迟 | HTTP 往返 + 推理 | 仅推理（<100ms） |
