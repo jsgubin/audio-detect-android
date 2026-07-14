@@ -10,8 +10,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        // PyTorch Android 和 JTransforms 有些旧版本在 jcenter
-        maven { url = uri("https://repo1.maven.org/maven2") }
+        // PyTorch Android 1.10.0 发布在 jcenter，Gradle 7+ 会自动重定向到 Maven Central
+        jcenter()
     }
 }
 
