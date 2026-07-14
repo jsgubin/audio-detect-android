@@ -3,9 +3,9 @@ package com.ringapp
 import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
-import android.content.*
+import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -15,13 +15,9 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
@@ -131,12 +127,12 @@ class MainActivity : AppCompatActivity() {
 
         if (isGranted) {
             tvNotificationStatus.text = "✅ ${getString(R.string.notification_granted)}"
-            tvNotificationStatus.setTextColor(getColor(com.google.android.material.R.color.material_color_green_700))
+            tvNotificationStatus.setTextColor(ContextCompat.getColor(this, R.color.green))
             btnNotificationSettings.text = "已开启"
             btnNotificationSettings.isEnabled = false
         } else {
             tvNotificationStatus.text = "⚠️ ${getString(R.string.not_listening_warning)}"
-            tvNotificationStatus.setTextColor(getColor(com.google.android.material.R.color.material_color_orange_700))
+            tvNotificationStatus.setTextColor(ContextCompat.getColor(this, R.color.orange))
             btnNotificationSettings.text = getString(R.string.open_settings)
             btnNotificationSettings.isEnabled = true
         }
@@ -245,7 +241,7 @@ class MainActivity : AppCompatActivity() {
         updateDeviceListUI()
 
         // 如果之前连接过这个地址，自动尝试重连
-        val savedAddress = getSharedPreferences("ring_prefs", MODE_PRIVATE)
+        val savedAddress = getSharedPreferences("ring_prefs", Context.MODE_PRIVATE)
             .getString("ring_address", null)
         if (savedAddress == device.address && bleManager?.state != RingBLEManager.State.CONNECTED) {
             appendLog("发现已配对的指环，自动连接...")
@@ -274,7 +270,7 @@ class MainActivity : AppCompatActivity() {
                     bleManager?.stopScan()
                     bleManager?.connect(device.address)
                     // 记住地址，下次自动重连
-                    getSharedPreferences("ring_prefs", MODE_PRIVATE)
+                    getSharedPreferences("ring_prefs", Context.MODE_PRIVATE)
                         .edit().putString("ring_address", device.address).apply()
                     appendLog("手动连接: ${device.name}")
                 }
@@ -297,7 +293,7 @@ class MainActivity : AppCompatActivity() {
             bleManager?.stopScan()
         } else {
             checkBluetoothPermissions()
-            val bluetoothManager = getSystemService(BLUETOOTH_SERVICE) as? BluetoothManager
+            val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
             if (bluetoothManager?.adapter?.isEnabled != true) {
                 Toast.makeText(this, R.string.bluetooth_disabled, Toast.LENGTH_SHORT).show()
                 startActivity(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
