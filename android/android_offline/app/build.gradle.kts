@@ -41,4 +41,10 @@ dependencies {
     implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("androidx.cardview:cardview:1.0.0")
+
+    // PyTorch Mobile (confirmed on Maven Central)
+    implementation("org.pytorch:pytorch_android_lite:2.1.0")
+
+    // JTransforms for FFT (confirmed on Maven Central)
+    implementation("com.github.wendykierp:JTransforms:3.2")
 }
