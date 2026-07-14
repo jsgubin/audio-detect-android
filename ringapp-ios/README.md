@@ -73,5 +73,21 @@ static let `default` = RingBLEConfig(
 
 ## 构建
 
-macOS + Xcode 打开 `ringapp-ios/` 目录，Cmd+R。
-需要 iOS 16+（AppIntents 要求）。
+### 本地构建（macOS + Xcode）
+
+1. 安装 [XcodeGen](https://github.com/yonaskolb/XcodeGen)：`brew install xcodegen`
+2. 生成 Xcode 项目：`cd ringapp-ios && xcodegen generate`
+3. 打开 `RingApp.xcodeproj`，选择开发团队（Signing & Capabilities）
+4. Cmd+R 运行（需 iOS 16+）
+
+### GitHub Actions CI 自动构建
+
+每次 push `ringapp-ios/` 目录到 main 分支时，
+`.github/workflows/build-ringapp-ios.yml` 会：
+
+- 在 macOS 虚拟机上用 XcodeGen 生成项目
+- 用 `xcodebuild` 编译验证（模拟器，无签名）
+- 上传构建日志
+
+⚠️ CI 产出的是**未签名的模拟器 .app**。
+要生成真机可安装的 IPA，需要 Apple Developer 账号（$99/年）并在项目配置 Development Team。

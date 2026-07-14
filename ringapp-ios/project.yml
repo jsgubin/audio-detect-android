@@ -1,0 +1,30 @@
+name: RingApp
+options:
+  bundleIdPrefix: com.ringapp
+  deploymentTarget:
+    iOS: "16.0"
+  xcodeVersion: "15.0"
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+
+targets:
+  RingApp:
+    type: application
+    platform: iOS
+    sources:
+      - path: RingApp
+    settings:
+      base:
+        INFOPLIST_FILE: RingApp/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.ringapp.ios
+        PRODUCT_NAME: 声感指环
+        DEVELOPMENT_TEAM: ""
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "Apple Development"
+    preBuildScripts:
+      - name: "SwiftLint"
+        script: |
+          echo "Skipping SwiftLint (not installed in CI)"
+        basedOnDependencyAnalysis: false

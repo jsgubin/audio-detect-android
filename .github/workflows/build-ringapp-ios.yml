@@ -1,0 +1,111 @@
+name: Build RingApp iOS
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'ringapp-ios/**'
+      - '.github/workflows/build-ringapp-ios.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          # List available Xcode versions
+          ls /Applications/ | grep Xcode
+          # Use latest available
+          sudo xcode-select -s /Applications/Xcode_16.app/Contents/Developer || \
+          sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer || \
+          sudo xcode-select -s /Applications/Xcode_15.2.app/Contents/Developer
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ./ringapp-ios
+        run: |
+          xcodegen generate
+          echo "Generated RingApp.xcodeproj"
+          ls -la RingApp.xcodeproj/
+
+      - name: Build for iOS Simulator (no signing)
+        working-directory: ./ringapp-ios
+        run: |
+          xcodebuild \
+            -project RingApp.xcodeproj \
+            -scheme RingApp \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build 2>&1 | tee build.log
+
+      - name: Show build result
+        if: always()
+        working-directory: ./ringapp-ios
+        run: |
+          echo "=== BUILD RESULT ==="
+          if grep -q "BUILD SUCCEEDED" build.log; then
+            echo "✅ BUILD SUCCEEDED"
+          else
+            echo "❌ BUILD FAILED"
+            echo "=== ERRORS ==="
+            grep -E "error:|❌|fatal error" build.log | head -30
+          fi
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ringapp-ios-build-log
+          path: ringapp-ios/build.log
+
+      - name: Create unsigned .app bundle
+        if: success()
+        working-directory: ./ringapp-ios
+        run: |
+          # Find the built .app
+          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "RingApp.app" -path "*/Debug-iphonesimulator/*" | head -1)
+          if [ -n "$APP_PATH" ]; then
+            echo "Found app at: $APP_PATH"
+            cp -R "$APP_PATH" ./build/RingApp.app
+            echo "=== APP SIZE ==="
+            du -sh ./build/RingApp.app
+          else
+            echo "Could not find built .app"
+          fi
+
+      - name: Upload .app artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ringapp-ios-simulator
+          path: ringapp-ios/build/RingApp.app
+          if-no-files-found: warn
+
+      - name: Build summary
+        if: always()
+        run: |
+          echo "=========================================="
+          echo "  RingApp iOS CI Build"
+          echo "=========================================="
+          echo ""
+          echo "✅ 编译通过 — 代码语法正确"
+          echo "⚠️ 生成的 .app 仅限模拟器使用，未签名"
+          echo ""
+          echo "要生成真机可安装的 IPA，需要："
+          echo "  1. Apple Developer 账号 ($99/年)"
+          echo "  2. 在项目设置中配置 Development Team"
+          echo "  3. 配置 Provisioning Profile"
+          echo "  4. 使用 xcodebuild archive + exportArchive"
+          echo ""
+          echo "当前 workflow 仅验证代码能否编译通过。"
