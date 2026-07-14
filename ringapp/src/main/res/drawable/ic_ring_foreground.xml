@@ -12,9 +12,8 @@
     <path
         android:fillColor="#FFFFFF"
         android:pathData="M8,10h2v4h-2zM11,8.5h2v7h-2zM14,7h2v10h-2z" />
-    <!-- Vibration lines -->
+    <!-- Vibration lines (stroke-only, no fill) -->
     <path
-        android:fillColor="#FFFFFF"
         android:pathData="M5,9l1,1.5 -1,1.5M19,9l-1,1.5 1,1.5M6,6l1.5,3 -1.5,3M18,6l-1.5,3 1.5,3"
         android:strokeWidth="1.5"
         android:strokeColor="#FFFFFF"
