@@ -22,6 +22,8 @@
     <string>1</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>声感指环需要通过蓝牙连接智能指环，以在有声音提醒时向指环发送震动指令。</string>
     <key>UIApplicationSceneManifest</key>
     <dict>
         <key>UIApplicationSupportsMultipleScenes</key>
@@ -32,6 +34,10 @@
     <key>UISupportedInterfaceOrientations</key>
     <array>
         <string>UIInterfaceOrientationPortrait</string>
+    </array>
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>bluetooth-central</string>
     </array>
 </dict>
 </plist>

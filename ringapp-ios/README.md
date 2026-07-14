@@ -1,67 +1,77 @@
 # 声感指环 iOS 版
 
-iOS App：系统声音识别 → Shortcuts 自动化 → 指环震动。
+iOS App：系统声音识别 → Shortcuts 自动化 → **CoreBluetooth 直连指环 BLE**。
 
-## 核心设计
+## 为什么不用 ANCS
 
-**不自己跑声音识别模型。** 利用 iOS 系统自带的「声音识别」功能（辅助功能），通过 Shortcuts 自动化桥接，将检测结果转发给指环。
+ANCS（Apple Notification Center Service）是 Apple 专有的 GATT 服务，
+需要指环固件完整实现 ANCS 协议栈才能接收 iPhone 通知。
+
+**你的自研指环使用的是自定义 BLE 协议（固定 Service/Characteristic），
+因此 iOS 端和 Android 端一样，通过 CoreBluetooth 直连 BLE GATT**
+写入震动指令到指环的 Characteristic。
 
 ## 工作原理
 
 ```
-iPhone 环境声音
-    ↓
-iOS 系统「声音识别」(设置 → 辅助功能 → 声音识别)
-    ↓ 检测到声音后触发
-Shortcuts 自动化
-    ↓ 调用
-SendSoundAlertIntent (AppIntent)
-    ↓ 发送
-本地通知 (UNUserNotificationCenter)
-    ↓ ANCS 蓝牙协议
-指环震动
+🎤 环境声音
+  → iOS 系统「声音识别」(设置 → 辅助功能 → 声音识别)
+    → Shortcuts 自动化
+      → SendSoundAlertIntent (AppIntent)
+        → RingBLEManager (CoreBluetooth)
+          → BLE GATT writeCharacteristic
+            → 💍 指环震动
 ```
 
-## 与 Android 版的对应关系
+如果指环未连接，降级为发送本地通知（手机本身提醒）。
+
+## 与 Android 版的统一
 
 | | Android (ringapp) | iOS (ringapp-ios) |
 |---|---|---|
-| 声音识别 | 系统「声音通知」(Android 14+) | 系统「声音识别」(辅助功能) |
-| 识别结果桥接 | NotificationListenerService | Shortcuts 自动化 + AppIntent |
-| 指环通信 | BLE GATT 直连 | ANCS 协议 |
-| 自己跑模型 | ❌ 不跑 | ❌ 不跑 |
+| 声音识别来源 | 系统「声音通知」 | 系统「声音识别」 |
+| 结果桥接 | NotificationListenerService | Shortcuts 自动化 + AppIntent |
+| 指环通信 | **BLE GATT 直连** | **CoreBluetooth BLE 直连** |
+| BLE UUID | `RingBLEConfig.DEFAULT` | `RingBLEConfig.default` |
+| 震动指令格式 | `[0x01, 0x01, pattern, intensity, repeat, checksum]` | 相同 |
 
 ## 项目结构
 
 ```
 RingApp/
-├── RingApp.swift              # @main 入口，请求通知权限
-├── ContentView.swift          # 设置引导界面（3 步指南）
-├── SoundCategory.swift        # 声音类别（13 类，AppEnum）
-├── SoundDetectionIntent.swift # AppIntent + Shortcuts 入口
-├── NotificationManager.swift  # 本地通知 → ANCS → 指环
-└── Info.plist                 # App 配置
+├── RingApp.swift              # @main 入口
+├── ContentView.swift          # 设置引导 + BLE 连接管理
+├── SoundCategory.swift        # 声音类别 (AppEnum)
+├── SoundDetectionIntent.swift # Shortcuts 调用的 AppIntent
+├── RingBLEManager.swift       # CoreBluetooth BLE 管理器
+├── RingBLEConfig.swift        # BLE UUID 配置
+├── NotificationManager.swift  # 本地通知（兜底提醒）
+└── Info.plist                 # 蓝牙权限 + 后台模式
 ```
 
-## 首次设置（3 步）
+## 首次使用
 
-### 1. 开启系统声音识别
-iPhone **设置 → 辅助功能 → 声音识别** → 打开开关
+1. 打开 App → 切换到「💍 BLE 指环」Tab → 扫描连接指环
+2. 切换到「📋 设置引导」→ 按步骤操作：
+   - 开启系统声音识别
+   - 创建 Shortcuts 自动化
+3. 确认指环已连接（状态栏显示绿色「已连接」）
+4. 环境声音被检测到时，指环自动震动
 
-### 2. 创建 Shortcuts 自动化
-打开 **Shortcuts（快捷指令）App**：
-- 自动化 → 创建个人自动化 → 声音识别
-- 选择要检测的声音类别
-- 下一步 → 搜索「发送声音警报」
-- 选择 → 完成
+## BLE UUID 配置
 
-> ⚠️ 每种声音类别需要单独创建一条自动化规则（共可创建约 13 条）。
+如果指环的 BLE UUID 与默认值不同，修改 `RingBLEConfig.swift` 中的 `default` 对象：
+```swift
+static let `default` = RingBLEConfig(
+    serviceUUID: CBUUID(string: "你的 Service UUID"),
+    vibrationCharUUID: CBUUID(string: "你的 Characteristic UUID"),
+    ...
+)
+```
 
-### 3. 确保指环已连接
-指环需支持 ANCS 协议，并已与 iPhone 蓝牙配对。
+与 Android 的 `RingBLEConfig.kt` 保持一致即可。
 
 ## 构建
 
-在 Mac 上用 Xcode 打开 `ringapp-ios/` 目录，Cmd+R。
-
-需要 iOS 16+（AppIntents 框架要求）。
+macOS + Xcode 打开 `ringapp-ios/` 目录，Cmd+R。
+需要 iOS 16+（AppIntents 要求）。
