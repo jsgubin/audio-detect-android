@@ -18,12 +18,12 @@ jobs:
 
       - name: Select Xcode
         run: |
-          # List available Xcode versions
+          # List available Xcode versions and pick latest
+          LATEST=$(ls /Applications/ | grep '^Xcode_[0-9]' | sort -V | tail -1)
+          echo "Available versions:"
           ls /Applications/ | grep Xcode
-          # Use latest available
-          sudo xcode-select -s /Applications/Xcode_16.app/Contents/Developer || \
-          sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer || \
-          sudo xcode-select -s /Applications/Xcode_15.2.app/Contents/Developer
+          echo "Using: $LATEST"
+          sudo xcode-select -s "/Applications/$LATEST/Contents/Developer"
           xcodebuild -version
 
       - name: Install XcodeGen
@@ -39,12 +39,19 @@ jobs:
       - name: Build for iOS Simulator (no signing)
         working-directory: ./ringapp-ios
         run: |
+          # Find available simulator
+          SIMULATOR_ID=$(xcrun simctl list devices available iPhone | grep -m1 "iPhone" | sed -E 's/.*\(([A-F0-9-]+)\).*/\1/')
+          if [ -z "$SIMULATOR_ID" ]; then
+            echo "No simulator found, booting default..."
+            SIMULATOR_ID="booted"
+          fi
+          echo "Building for simulator: $SIMULATOR_ID"
           xcodebuild \
             -project RingApp.xcodeproj \
             -scheme RingApp \
             -configuration Debug \
             -sdk iphonesimulator \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -destination "id=$SIMULATOR_ID" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             build 2>&1 | tee build.log
