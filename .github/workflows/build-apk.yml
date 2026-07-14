@@ -57,6 +57,24 @@ jobs:
           if [ ! -f app/build/outputs/apk/debug/app-debug.apk ]; then exit 1; fi
         timeout-minutes: 30
 
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: ${{ steps.find_path.outputs.path }}/build.log
+        working-directory: ./${{ steps.find_path.outputs.path }}
+        run: |
+          ./gradlew assembleDebug --stacktrace --no-daemon > build.log 2>&1 || true
+          echo "=== BUILD LOG (last 200 lines) ==="
+          tail -n 200 build.log
+          echo "=== ERROR SUMMARY ==="
+          grep -E "ERROR|FAIL|Exception|cannot|error:" build.log | tail -20 || true
+          # 如果编译失败，返回非零退出码
+          if grep -q "BUILD FAILED" build.log; then exit 1; fi
+          if [ ! -f app/build/outputs/apk/debug/app-debug.apk ]; then exit 1; fi
+        timeout-minutes: 30
+
       - name: Upload APK artifact
         if: success()
         uses: actions/upload-artifact@v4
