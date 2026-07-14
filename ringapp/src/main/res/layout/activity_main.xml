@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- ========== 标题 ========== -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="🔊 声感指环"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="@color/primary"
+            android:gravity="center"
+            android:paddingBottom="8dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="系统声音通知 → 指环震动提醒"
+            android:textSize="14sp"
+            android:textColor="@color/on_surface"
+            android:alpha="0.6"
+            android:gravity="center"
+            android:paddingBottom="16dp" />
+
+        <!-- ========== Android 版本警告 ========== -->
+        <TextView
+            android:id="@+id/tv_android_version_warning"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/android14_warning"
+            android:textSize="13sp"
+            android:textColor="@color/orange"
+            android:padding="12dp"
+            android:background="@drawable/bg_warning"
+            android:visibility="gone"
+            android:layout_marginBottom="12dp" />
+
+        <!-- ========== 通知监听状态卡片 ========== -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp"
+            android:background="@drawable/bg_card"
+            android:layout_marginBottom="12dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="📋 通知监听权限"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/on_surface"
+                android:paddingBottom="8dp" />
+
+            <TextView
+                android:id="@+id/tv_notification_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                android:paddingBottom="8dp" />
+
+            <Button
+                android:id="@+id/btn_notification_settings"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/open_settings"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <!-- ========== BLE 指环卡片 ========== -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp"
+            android:background="@drawable/bg_card"
+            android:layout_marginBottom="12dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingBottom="8dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="💍 智能指环"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/on_surface" />
+
+                <TextView
+                    android:id="@+id/tv_ble_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/ble_disconnected"
+                    android:textSize="13sp"
+                    android:textColor="@color/on_surface"
+                    android:alpha="0.7" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingBottom="4dp">
+
+                <Button
+                    android:id="@+id/btn_ble_scan"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/ble_scan_start"
+                    android:textSize="13sp" />
+
+                <Button
+                    android:id="@+id/btn_ble_disconnect"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="断开"
+                    android:textSize="13sp"
+                    android:enabled="false"
+                    android:layout_marginStart="8dp" />
+            </LinearLayout>
+
+            <!-- 设备列表 -->
+            <TextView
+                android:id="@+id/tv_ble_device_list"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/ble_not_found"
+                android:textSize="12sp"
+                android:textColor="@color/on_surface"
+                android:alpha="0.5"
+                android:paddingVertical="8dp" />
+
+            <!-- 可点击设备按钮 -->
+            <LinearLayout
+                android:id="@+id/layout_ble_devices"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <Button
+                android:id="@+id/btn_test_vibration"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/test_vibration"
+                android:textSize="13sp"
+                android:enabled="false"
+                android:layout_marginTop="8dp"
+                style="@style/Widget.Material3.Button.TonalButton" />
+        </LinearLayout>
+
+        <!-- ========== 服务状态 ========== -->
+        <TextView
+            android:id="@+id/tv_service_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/service_stopped"
+            android:textSize="12sp"
+            android:textColor="@color/on_surface"
+            android:alpha="0.5"
+            android:gravity="center"
+            android:paddingBottom="12dp" />
+
+        <!-- ========== 日志 ========== -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp"
+            android:background="@drawable/bg_card">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="📜 运行日志"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/on_surface"
+                android:paddingBottom="8dp" />
+
+            <TextView
+                android:id="@+id/tv_log"
+                android:layout_width="match_parent"
+                android:layout_height="200dp"
+                android:text="等待启动..."
+                android:textSize="11sp"
+                android:textColor="@color/on_surface"
+                android:fontFamily="monospace"
+                android:alpha="0.8"
+                android:scrollbars="vertical"
+                android:background="#F5F5F5"
+                android:padding="8dp"
+                android:typeface="monospace" />
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>

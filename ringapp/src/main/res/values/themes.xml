@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.RingApp" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorOnPrimary">@color/on_primary</item>
+        <item name="colorPrimaryContainer">@color/primary_container</item>
+    </style>
+
+    <color name="primary">#6750A4</color>
+    <color name="on_primary">#FFFFFF</color>
+    <color name="primary_container">#EADDFF</color>
+    <color name="surface">#FEFBFF</color>
+    <color name="on_surface">#1C1B1F</color>
+    <color name="error">#BA1A1A</color>
+    <color name="green">#4CAF50</color>
+    <color name="orange">#FF9800</color>
+</resources>

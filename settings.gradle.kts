@@ -17,3 +17,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "AudioDetectOffline"
 include(":app")
+include(":ringapp")
