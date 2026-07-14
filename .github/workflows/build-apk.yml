@@ -62,29 +62,23 @@ jobs:
           ls -la ${{ steps.find_path.outputs.path }}/
           echo "=== app/build.gradle.kts ==="
           cat ${{ steps.find_path.outputs.path }}/app/build.gradle.kts
-          echo "=== settings.gradle.kts ==="
-          cat ${{ steps.find_path.outputs.path }}/settings.gradle.kts
 
       - name: Build APK with Gradle
         id: gradle_build
         working-directory: ./${{ steps.find_path.outputs.path }}
-        run: ./gradlew assembleDebug --stacktrace --info --no-daemon
+        run: |
+          ./gradlew assembleDebug --stacktrace --console=plain --no-daemon 2>&1 | tee gradle-output.txt
+          exit ${PIPESTATUS[0]}
         timeout-minutes: 30
 
-      - name: Print logs on failure
+      - name: Print last 500 lines of build output on failure
         if: failure() && steps.gradle_build.outcome == 'failure'
         working-directory: ./${{ steps.find_path.outputs.path }}
         run: |
-          echo "=== Looking for build logs ==="
-          find app/build -name "*.log" -o -name "*.txt" 2>/dev/null | head -20
-          echo "=== Build output logs ==="
-          ls -la app/build/outputs/logs/ 2>/dev/null || echo "No outputs/logs directory"
-          echo "=== Gradle daemon logs ==="
-          ls -la ~/.gradle/daemon/ 2>/dev/null || echo "No daemon logs"
-          echo "=== Last 100 lines of any log ==="
-          find app/build -name "*.log" -exec tail -n 100 {} \; 2>/dev/null || true
-          echo "=== Gradle error summary ==="
-          ./gradlew assembleDebug --dry-run --no-daemon 2>&1 | tail -50 || true
+          echo "=== BUILD OUTPUT (last 500 lines) ==="
+          tail -n 500 gradle-output.txt || cat gradle-output.txt || echo "No output file"
+          echo "=== ERROR SUMMARY ==="
+          grep -E "ERROR|FAIL|error:|FAILED|cannot|Exception" gradle-output.txt | head -30 || true
 
       - name: Upload APK artifact
         if: success()
@@ -94,10 +88,10 @@ jobs:
           path: ${{ steps.find_path.outputs.path }}/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
-      - name: Upload build logs on failure
+      - name: Upload build output on failure
         if: failure() && steps.gradle_build.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
-          name: build-logs
-          path: ${{ steps.find_path.outputs.path }}/app/build/**/*.log
+          name: gradle-output
+          path: ${{ steps.find_path.outputs.path }}/gradle-output.txt
           if-no-files-found: ignore
