@@ -4,12 +4,15 @@ import UIKit
 
 /// 本地通知管理器
 ///
-/// 当检测到声音时，发送本地通知到 iPhone 通知中心。
-/// 智能指环通过 ANCS (Apple Notification Center Service) 协议
-/// 自动接收通知并根据 sound_type 和 priority 触发相应震动。
+/// 接收来自 Shortcuts AppIntent 的声音识别结果，
+/// 发送本地通知到 iPhone 通知中心。
 ///
-/// 注意：指环端需要支持 ANCS 协议才能工作。
-/// 如果指环不支持 ANCS，需改为 CoreBluetooth 直连方式。
+/// 智能指环通过 ANCS (Apple Notification Center Service) 协议
+/// 自动获取通知并根据 userInfo 中的 sound_type / vibration_pattern / priority 震动。
+///
+/// 不需要直接调用 SoundAnalysis 框架 —
+/// 声音识别由 iOS 系统的「辅助功能 → 声音识别」完成，
+/// Shortcuts 自动化触发我们的 AppIntent，然后调用此管理器发送通知。
 class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
 
     static let shared = NotificationManager()
@@ -33,39 +36,50 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
-    // MARK: - Send Notification
+    // MARK: - Send Alert (from AppIntent)
 
-    /// 发送声音检测通知
-    /// - Parameters:
-    ///   - category: 检测到的声音类别
-    ///   - confidence: 置信度 (0.0 ~ 1.0)
-    func sendDetectionNotification(category: SoundCategory, confidence: Float) {
+    /// 由 Shortcuts AppIntent 调用
+    func sendSoundAlert(
+        category: SoundCategory,
+        intensity: VibrationIntensity,
+        repeatCount: Int
+    ) {
         let content = UNMutableNotificationContent()
 
-        // 标题：类别图标 + 名称
-        content.title = "\(category.emoji) 检测到 \(category.displayName)"
+        // 标题
+        content.title = "\(category.emoji) \(category.displayName)"
 
-        // 正文：置信度
-        content.body = "置信度: \(Int(confidence * 100))%"
+        // 正文（根据强度和重复次数）
+        let intensityText: String
+        switch intensity {
+        case .light:  intensityText = "轻微"
+        case .medium: intensityText = "中等"
+        case .strong: intensityText = "强烈"
+        case .sos:    intensityText = "SOS 紧急"
+        }
+        content.body = repeatCount > 1
+            ? "\(intensityText)震动提醒，重复 \(repeatCount) 次"
+            : "检测到声音，\(intensityText)震动提醒"
 
         // 声音
         content.sound = .default
 
-        // categoryIdentifier：供指环 App 识别通知类型
-        content.categoryIdentifier = "SOUND_DETECTION"
+        // Category：供指环 App 识别
+        content.categoryIdentifier = "SOUND_ALERT_\(intensity.rawValue.uppercased())"
 
-        // 附加数据：指环固件可通过 ANCS 读取这些字段来决定震动模式
+        // 附加数据：指环固件通过 ANCS 读取
         content.userInfo = [
             "sound_type": category.rawValue,
             "vibration_pattern": category.vibrationPattern,
             "priority": category.priority,
-            "confidence": confidence,
+            "intensity": intensity.rawValue,
+            "repeat_count": repeatCount,
             "timestamp": Date().timeIntervalSince1970
         ]
 
-        // 立即触发
+        // 立即发送
         let request = UNNotificationRequest(
-            identifier: UUID().uuidString,
+            identifier: "sound-alert-\(UUID().uuidString)",
             content: content,
             trigger: nil
         )
@@ -74,31 +88,29 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
             if let error = error {
                 print("❌ 发送通知失败: \(error.localizedDescription)")
             } else {
-                print("📢 已发送通知: \(category.displayName) → 指环震动")
+                print("📢 已发送 \(category.emoji) \(category.displayName) 警报 → 指环震动")
             }
         }
 
         // 同时触发手机震动（双重保险）
-        triggerHapticFeedback(category: category)
+        triggerHaptic(intensity: intensity)
     }
 
-    // MARK: - Haptic Feedback
+    // MARK: - Haptic
 
-    private func triggerHapticFeedback(category: SoundCategory) {
-        let type: UINotificationFeedbackGenerator.FeedbackType
-        switch category.priority {
-        case 3: type = .error
-        case 2: type = .warning
-        default: type = .success
+    private func triggerHaptic(intensity: VibrationIntensity) {
+        let style: UINotificationFeedbackGenerator.FeedbackType
+        switch intensity {
+        case .light:  style = .success
+        case .medium: style = .warning
+        case .strong, .sos: style = .error
         }
-
         let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(type)
+        generator.notificationOccurred(style)
     }
 
     // MARK: - UNUserNotificationCenterDelegate
 
-    /// 前台也显示通知
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
@@ -107,7 +119,6 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         completionHandler([.banner, .sound, .badge])
     }
 
-    /// 用户点击通知
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,

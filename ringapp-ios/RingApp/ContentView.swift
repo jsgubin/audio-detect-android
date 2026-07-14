@@ -1,295 +1,282 @@
 import SwiftUI
 
-/// 主界面
+/// 设置引导界面
+///
+/// 本 App 不自己跑识别模型，而是利用 iOS 系统「声音识别」+ Shortcuts 自动化。
+/// 此界面引导用户完成以下 3 步设置：
+///   1. 在系统设置中开启「声音识别」
+///   2. 创建 Shortcuts 自动化：声音识别触发 → 发送警报
+///   3. 确保指环通过 ANCS 连接到 iPhone
 struct ContentView: View {
 
-    @StateObject private var classifier = SoundClassifier()
+    @State private var showTestAlert = false
 
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                // 状态栏
-                statusBar
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    // ── 标题 ──
+                    headerSection
 
-                ScrollView {
-                    VStack(spacing: 20) {
-                        // 控制按钮
-                        controlSection
+                    // ── 步骤 1：开启系统声音识别 ──
+                    setupStep(
+                        number: "1",
+                        icon: "ear.badge.waveform",
+                        title: "开启系统「声音识别」",
+                        description: "前往 iPhone 设置 → 辅助功能 → 声音识别，打开开关。\n\n系统将使用设备端 AI 持续监听环境声音，无需联网。",
+                        actionTitle: "打开设置",
+                        actionURL: "App-prefs:ACCESSIBILITY"
+                    )
 
-                        // 类别选择
-                        categorySection
+                    // ── 步骤 2：配置 Shortcuts 自动化 ──
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.blue.opacity(0.1))
+                                    .frame(width: 36, height: 36)
+                                Text("2")
+                                    .font(.headline)
+                                    .foregroundColor(.blue)
+                            }
 
-                        // 阈值调节
-                        thresholdSection
-
-                        // 最新检测
-                        if classifier.lastDetection != nil {
-                            lastResultSection
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("配置 Shortcuts 自动化")
+                                    .font(.headline)
+                                Image(systemName: "bolt.badge.automatic")
+                                    .foregroundColor(.blue)
+                            }
                         }
 
-                        // 识别历史
-                        historySection
+                        Text("打开 Shortcuts（快捷指令）App → 自动化 → 创建个人自动化 → 声音识别 → 选择要检测的声音类别 → 下一步 → 搜索「发送声音警报」→ 选择 → 完成。\n\n每种声音类别需要单独创建一条自动化规则。")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .lineSpacing(4)
+
+                        Button(action: {
+                            if let url = URL(string: "shortcuts://") {
+                                UIApplication.shared.open(url)
+                            }
+                        }) {
+                            Label("打开 Shortcuts", systemImage: "app.connected.to.app.below.fill")
+                                .font(.subheadline)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.blue)
                     }
                     .padding()
+                    .background(Color(.systemBackground))
+                    .cornerRadius(12)
+                    .shadow(color: Color.black.opacity(0.05), radius: 8)
+
+                    // ── 步骤 3：连接指环 ──
+                    setupStepSimple(
+                        number: "3",
+                        icon: "ring.circle",
+                        title: "确保指环已连接",
+                        description: "指环需要支持 ANCS（Apple Notification Center Service）协议。\n\n确保指环已与 iPhone 蓝牙配对，并且指环的通知转发功能已开启。"
+                    )
+
+                    // ── 声音类别参考 ──
+                    categoryReference
+
+                    // ── 架构说明 ──
+                    architectureInfo
+
+                    Spacer(minLength: 40)
                 }
+                .padding()
             }
             .navigationTitle("🔊 声感指环")
             .navigationBarTitleDisplayMode(.large)
+            .background(Color(.systemGroupedBackground))
         }
     }
 
-    // MARK: - Status Bar
+    // MARK: - Header
 
-    private var statusBar: some View {
-        HStack {
-            Circle()
-                .fill(classifier.isListening ? Color.green : Color.orange)
-                .frame(width: 10, height: 10)
+    private var headerSection: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "bell.badge.waveform.fill")
+                .font(.system(size: 50))
+                .foregroundColor(.blue)
+                .padding(.bottom, 8)
 
-            Text(classifier.isListening ? "正在监听" : "已暂停")
+            Text("环境声音 → 指环震动")
+                .font(.title2.bold())
+
+            Text("利用 iPhone 内建声音识别，将警报通过蓝牙发送给智能指环，即使手机静音也不会错过重要声音。")
                 .font(.subheadline)
-                .foregroundColor(classifier.isListening ? .green : .orange)
-
-            Spacer()
-
-            // 通知状态
-            HStack(spacing: 4) {
-                Image(systemName: "bell.badge.fill")
-                    .foregroundColor(.blue)
-                    .font(.caption)
-                Text("通知已就绪")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
         }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
-        .background(Color(.systemGray6))
+        .frame(maxWidth: .infinity)
+        .padding()
     }
 
-    // MARK: - Control Section
+    // MARK: - Step with action
 
-    private var controlSection: some View {
-        Button(action: toggleListening) {
-            HStack(spacing: 12) {
-                Image(systemName: classifier.isListening ? "stop.fill" : "mic.fill")
-                    .font(.title2)
-                Text(classifier.isListening ? "停止监听" : "开始监听")
-                    .font(.title3.bold())
-            }
-            .foregroundColor(.white)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 18)
-            .background(classifier.isListening ? Color.red : Color.green)
-            .cornerRadius(16)
-        }
-    }
-
-    // MARK: - Category Section
-
-    private var categorySection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+    private func setupStep(
+        number: String,
+        icon: String,
+        title: String,
+        description: String,
+        actionTitle: String,
+        actionURL: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("选择要监听的声音")
-                    .font(.headline)
-                Spacer()
-                Text("已选 \(classifier.selectedCategories.count) / \(SoundCategory.allCases.count)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-
-            let columns = [GridItem(.adaptive(minimum: 90))]
-
-            LazyVGrid(columns: columns, spacing: 10) {
-                ForEach(SoundCategory.allCases) { category in
-                    CategoryToggleButton(
-                        category: category,
-                        isSelected: classifier.selectedCategories.contains(category),
-                        action: { classifier.toggleCategory(category) }
-                    )
+                ZStack {
+                    Circle()
+                        .fill(Color.blue.opacity(0.1))
+                        .frame(width: 36, height: 36)
+                    Text(number)
+                        .font(.headline)
+                        .foregroundColor(.blue)
                 }
-            }
-        }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
-    }
-
-    // MARK: - Threshold Section
-
-    private var thresholdSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("置信度阈值")
-                    .font(.headline)
-                Spacer()
-                Text("\(Int(classifier.confidenceThreshold * 100))%")
-                    .font(.subheadline)
-                    .foregroundColor(.blue)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
-                    .background(Color.blue.opacity(0.1))
-                    .cornerRadius(8)
-            }
-
-            Slider(
-                value: $classifier.confidenceThreshold,
-                in: 0.3...0.95,
-                step: 0.05
-            )
-
-            HStack {
-                Text("低 (容易误报)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Spacer()
-                Text("高 (减少误报)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-        }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
-    }
-
-    // MARK: - Last Result
-
-    private var lastResultSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("最新检测")
-                .font(.headline)
-
-            HStack(spacing: 16) {
-                Text(classifier.lastDetection!.category.emoji)
-                    .font(.system(size: 40))
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(classifier.lastDetection!.category.displayName)
-                        .font(.title2.bold())
-                    Text("置信度: \(Int(classifier.lastDetection!.confidence * 100))%")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-
-                Spacer()
-            }
-            .padding()
-            .background(Color.green.opacity(0.1))
-            .cornerRadius(12)
-        }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
-    }
-
-    // MARK: - History
-
-    private var historySection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("识别历史")
-                    .font(.headline)
-                Spacer()
-                if !classifier.detectionHistory.isEmpty {
-                    Button("清空") { classifier.clearHistory() }
-                        .font(.subheadline)
-                        .foregroundColor(.red)
+                    Text(title)
+                        .font(.headline)
+                    Image(systemName: icon)
+                        .foregroundColor(.blue)
                 }
             }
 
-            if classifier.detectionHistory.isEmpty {
-                Text("暂无记录")
+            Text(description)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .lineSpacing(4)
+
+            Button(action: {
+                if let url = URL(string: actionURL) {
+                    UIApplication.shared.open(url)
+                }
+            }) {
+                Label(actionTitle, systemImage: "arrow.up.forward.app")
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 30)
-            } else {
-                LazyVStack(spacing: 8) {
-                    ForEach(classifier.detectionHistory.prefix(30)) { record in
-                        HistoryRow(record: record)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .tint(.blue)
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.05), radius: 8)
+    }
+
+    private func setupStepSimple(
+        number: String,
+        icon: String,
+        title: String,
+        description: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                ZStack {
+                    Circle()
+                        .fill(Color.blue.opacity(0.1))
+                        .frame(width: 36, height: 36)
+                    Text(number)
+                        .font(.headline)
+                        .foregroundColor(.blue)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.headline)
+                    Image(systemName: icon)
+                        .foregroundColor(.blue)
+                }
+            }
+
+            Text(description)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .lineSpacing(4)
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.05), radius: 8)
+    }
+
+    // MARK: - Categories
+
+    private var categoryReference: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("iOS 系统支持的声音类别")
+                .font(.headline)
+
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 100))], spacing: 8) {
+                ForEach(SoundCategory.allCases, id: \.rawValue) { category in
+                    HStack(spacing: 4) {
+                        Text(category.emoji)
+                            .font(.caption)
+                        Text(category.displayName)
+                            .font(.caption2)
+                            .lineLimit(1)
                     }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color(.systemGray6))
+                    .cornerRadius(6)
                 }
             }
         }
         .padding()
         .background(Color(.systemBackground))
         .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+        .shadow(color: Color.black.opacity(0.05), radius: 8)
     }
 
-    // MARK: - Actions
+    // MARK: - Architecture
 
-    private func toggleListening() {
-        if classifier.isListening {
-            classifier.stopListening()
-        } else {
-            classifier.startListening()
-        }
-    }
-}
+    private var architectureInfo: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("工作原理")
+                .font(.headline)
 
-// MARK: - Subviews
-
-struct CategoryToggleButton: View {
-    let category: SoundCategory
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                Text(category.emoji)
-                    .font(.title3)
-                Text(category.displayName)
-                    .font(.system(size: 10))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+            VStack(alignment: .leading, spacing: 6) {
+                flowRow("🎤", "iPhone 监听环境声音")
+                flowArrow()
+                flowRow("🧠", "iOS 系统声音识别（设备端 AI）")
+                flowArrow()
+                flowRow("⚡", "Shortcuts 自动化触发")
+                flowArrow()
+                flowRow("📱", "AppIntent 发送本地通知")
+                flowArrow()
+                flowRow("📡", "ANCS 蓝牙协议")
+                flowArrow()
+                flowRow("💍", "指环震动提醒")
             }
-            .frame(maxWidth: .infinity, minHeight: 55)
-            .padding(.vertical, 6)
-            .background(isSelected ? Color.blue : Color(.systemGray6))
-            .foregroundColor(isSelected ? .white : .primary)
+            .font(.caption)
+            .foregroundColor(.secondary)
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(.systemGray6))
             .cornerRadius(10)
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(isSelected ? Color.blue : Color.clear, lineWidth: 2)
-            )
         }
-        .buttonStyle(PlainButtonStyle())
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.05), radius: 8)
     }
-}
 
-struct HistoryRow: View {
-    let record: SoundClassifier.DetectionRecord
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Text(record.category.emoji)
-                .font(.title3)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(record.category.displayName)
-                    .font(.subheadline.bold())
-                Text(record.timestamp, style: .time)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-
-            Spacer()
-
-            Text("\(Int(record.confidence * 100))%")
-                .font(.caption.bold())
-                .foregroundColor(.blue)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Color.blue.opacity(0.1))
-                .cornerRadius(6)
+    private func flowRow(_ emoji: String, _ text: String) -> some View {
+        HStack(spacing: 8) {
+            Text(emoji)
+            Text(text)
         }
-        .padding(.vertical, 4)
+    }
+
+    private func flowArrow() -> some View {
+        HStack {
+            Text("↓")
+                .padding(.leading, 12)
+        }
     }
 }
 
