@@ -25,6 +25,11 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Setup Gradle with caching
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: wrapper
+
       - name: Find project path
         id: find_path
         run: |
@@ -55,14 +60,15 @@ jobs:
           echo "=== settings.gradle.kts ==="
           cat ${{ steps.find_path.outputs.path }}/settings.gradle.kts
 
+      - name: Gradle version check
+        working-directory: ./${{ steps.find_path.outputs.path }}
+        run: ./gradlew --version --no-daemon
+        timeout-minutes: 5
+
       - name: Build APK with Gradle
         working-directory: ./${{ steps.find_path.outputs.path }}
-        run: |
-          set -x
-          ./gradlew --version
-          ./gradlew assembleDebug --stacktrace --info --no-daemon
-        timeout-minutes: 20
-        shell: bash
+        run: ./gradlew assembleDebug --stacktrace --info --no-daemon
+        timeout-minutes: 30
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
