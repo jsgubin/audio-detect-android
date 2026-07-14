@@ -10,8 +10,6 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        // PyTorch Android 1.10.0 发布在 jcenter，Gradle 7+ 会自动重定向到 Maven Central
-        jcenter()
     }
 }
 
